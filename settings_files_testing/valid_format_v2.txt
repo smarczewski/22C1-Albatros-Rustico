@@ -1,0 +1,6 @@
+download_dir_path=/home
+
+abcdefghijklmn...z
+tcp_port=1111
+%$#"" :) :( :D
+logs_dir_path=/home
