@@ -1,5 +1,5 @@
 fn main() {
-    println!("Bienvenido al Proyecto BitTorrent Rustico!!!");
+    println!("\nBienvenido al Proyecto BitTorrent Rustico!!!\n");
 }
 
 #[cfg(test)]
