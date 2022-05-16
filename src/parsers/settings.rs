@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Error};
 /// Contains the path of the file to parse.
 /// The file has to be in the following format: parameter=value, where
 /// the parameters are: 'tcp_port', 'logs_dir_path' and 'download_dir_path'
-pub struct SettingsParser<'a>(&'a str);
+pub struct SettingsParser<'a>(pub &'a str);
 
 impl<'a> SettingsParser<'a> {
     /// In case of success, Returns a Hashmap which contains the parameters (as key) and their respective values.
@@ -89,7 +89,7 @@ mod tests {
             SettingsParser("settings_files_testing/valid_format_v1.txt").parse_file();
 
         let mut expected_settings = HashMap::new();
-        expected_settings.insert("tcp_port".to_string(), "1111".to_string());
+        expected_settings.insert("tcp_port".to_string(), "127.0.0.1:8080".to_string());
         expected_settings.insert("logs_dir_path".to_string(), "/home".to_string());
         expected_settings.insert("download_dir_path".to_string(), "/home".to_string());
 
@@ -103,7 +103,7 @@ mod tests {
 
         let mut expected_settings = HashMap::new();
         expected_settings.insert("download_dir_path".to_string(), "/home".to_string());
-        expected_settings.insert("tcp_port".to_string(), "1111".to_string());
+        expected_settings.insert("tcp_port".to_string(), "127.0.0.1:8080".to_string());
         expected_settings.insert("logs_dir_path".to_string(), "/home".to_string());
 
         assert_eq!(received_settings.unwrap(), expected_settings);
