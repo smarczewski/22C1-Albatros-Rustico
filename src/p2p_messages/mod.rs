@@ -1,6 +1,7 @@
 pub mod errors;
 pub mod message_builder;
 pub mod message_trait;
+mod tests;
 
 pub mod bitfield;
 pub mod cancel;
