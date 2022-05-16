@@ -97,11 +97,11 @@ mod tests {
         assert!(Result::is_err(&Logger::check_filepath_exists(invalid_file)));
     }
 
-    //  #[test]
-    //    fn test_checking_for_existent_file_returns_ok() {
-    //      let valid_file = "valid_file.txt";
-    //     assert!(Result::is_ok(&Logger::check_filepath_exists(valid_file)));
-    //    }
+    #[test]
+    fn test_checking_for_existent_file_returns_ok() {
+        let valid_file = "settings_files_testing/valid_file.txt";
+        assert!(Result::is_ok(&Logger::check_filepath_exists(valid_file)));
+    }
 
     #[test]
     fn test_checking_matching_an_invalid_log_level_returns_debug() {
