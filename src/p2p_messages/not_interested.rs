@@ -34,7 +34,7 @@ impl Message for NotInterestedMessage {
         stream
             .write_all(&self.id.to_be_bytes())
             .map_err(MessageError::SendingError)?;
-
+        stream.flush().unwrap();
         Ok(())
     }
 }

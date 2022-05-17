@@ -23,6 +23,8 @@ impl Message for KeepAliveMessage {
         stream
             .write_all(&self._length.to_be_bytes())
             .map_err(MessageError::SendingError)?;
+        stream.flush().unwrap();
+
         Ok(())
     }
 }

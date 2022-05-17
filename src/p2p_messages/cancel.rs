@@ -75,6 +75,7 @@ impl Message for CancelMessage {
         stream
             .write_all(&self.block_length.to_be_bytes())
             .map_err(MessageError::SendingError)?;
+        stream.flush().unwrap();
 
         Ok(())
     }

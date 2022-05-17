@@ -49,6 +49,7 @@ impl Message for BitfieldMessage {
         stream
             .write_all(&self.pieces)
             .map_err(MessageError::SendingError)?;
+        stream.flush().unwrap();
 
         Ok(())
     }

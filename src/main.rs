@@ -16,15 +16,18 @@ fn main() {
     let settings_path = &args[1];
     let settings = Arc::new(SettingsParser(settings_path).parse_file().unwrap());
 
-    let settings_cl = settings.clone();
-    let client_thread = thread::spawn(move || {
-        let client = Client::new(&settings_cl).unwrap();
-        client.run_client().unwrap();
+    let settings_sv = settings.clone();
+    let server_thread = thread::spawn(move || {
+        let server = Server::new(&settings_sv).unwrap();
+        server.run_server().unwrap();
     });
 
-    let server_thread = thread::spawn(move || {
-        let server = Server::new(&settings).unwrap();
-        server.run_server().unwrap();
+    let settings_cl = settings;
+    let client_thread = thread::spawn(move || {
+        let client = Client::new(&settings_cl).unwrap();
+        for _i in 0..=4 {
+            client.run_client().unwrap();
+        }
     });
 
     client_thread.join().unwrap();

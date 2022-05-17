@@ -1,0 +1,3 @@
+tcp_port=999.9.9.9:99999
+logs_dir_path=/home
+download_dir_path=/home

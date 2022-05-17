@@ -73,6 +73,7 @@ impl Message for PieceMessage {
         stream
             .write_all(&self.block)
             .map_err(MessageError::SendingError)?;
+        stream.flush().unwrap();
 
         Ok(())
     }

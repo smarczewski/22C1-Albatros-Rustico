@@ -35,7 +35,7 @@ impl Message for InterestedMessage {
         stream
             .write_all(&self.id.to_be_bytes())
             .map_err(MessageError::SendingError)?;
-
+        stream.flush().unwrap();
         Ok(())
     }
 }

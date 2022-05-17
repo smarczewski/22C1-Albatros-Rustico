@@ -1,6 +1,6 @@
 use crate::p2p_messages::interested::InterestedMessage;
+use crate::p2p_messages::message_builder::MessageBuilder;
 use crate::p2p_messages::message_trait::Message;
-use crate::p2p_messages::not_interested::NotInterestedMessage;
 
 use std::collections::HashMap;
 use std::io::Error;
@@ -34,21 +34,31 @@ impl Client {
         let a_connection = thread::spawn(move || {
             let stream = TcpStream::connect(address);
             if let Ok(mut s) = stream {
-                let msg = InterestedMessage::new().unwrap(); //envio de prueba
+                let msg = InterestedMessage::new().unwrap(); // test message
                 msg.send_msg(&mut s).unwrap();
-            }
-        });
-
-        let another_connection = thread::spawn(move || {
-            let stream = TcpStream::connect(address);
-            if let Ok(mut s) = stream {
-                let msg = NotInterestedMessage::new().unwrap(); //envio de prueba
-                msg.send_msg(&mut s).unwrap();
+                if let Ok(msg_received) = MessageBuilder::build(&mut s) {
+                    msg_received.print_msg();
+                }
             }
         });
 
         a_connection.join().unwrap();
-        another_connection.join().unwrap();
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parsers::settings::SettingsParser;
+
+    #[test]
+    fn client_is_created_correctly() {
+        let settings = SettingsParser("settings_files_testing/valid_format_v2.txt")
+            .parse_file()
+            .unwrap();
+        let client = Client::new(&settings);
+        assert!(client.is_ok());
     }
 }

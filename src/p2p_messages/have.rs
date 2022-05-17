@@ -49,6 +49,7 @@ impl Message for HaveMessage {
         stream
             .write_all(&self.piece_index.to_be_bytes())
             .map_err(MessageError::SendingError)?;
+        stream.flush().unwrap();
 
         Ok(())
     }
