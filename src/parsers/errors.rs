@@ -6,8 +6,7 @@ use std::string::FromUtf8Error;
 pub enum ParseError {
     EmptyFilePath,
     NoSuchFile(Error),
-    FileInInvalidFormat,
-    FileReadingError(Error),
+    FileInInvalidFormat(Error),
     IntConvertionError(ParseIntError),
     StrConvertionError(FromUtf8Error),
 }

@@ -1,29 +1,32 @@
 use crate::parsers::errors::ParseError;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Error};
+use std::io::{BufRead, BufReader, Error, ErrorKind};
 
 /// # struct Settings Parser
-/// Contains the path of the file to parse.
+/// Its only pub function is parse_file(), which receives the file to parse.
 /// The file has to be in the following format: parameter=value, where
 /// the parameters are: 'tcp_port', 'logs_dir_path' and 'download_dir_path'
-pub struct SettingsParser<'a>(pub &'a str);
+pub struct SettingsParser;
 
-impl<'a> SettingsParser<'a> {
+impl SettingsParser {
     /// In case of success, Returns a Hashmap which contains the parameters (as key) and their respective values.
     /// Otherwise, returns a ParseError
-    pub fn parse_file(&self) -> Result<HashMap<String, String>, ParseError> {
-        if self.0.is_empty() {
+    pub fn parse_file(&self, file_path: &str) -> Result<HashMap<String, String>, ParseError> {
+        if file_path.is_empty() {
             return Err(ParseError::EmptyFilePath);
         }
 
         let lines = self
-            .read_file_lines(self.0)
+            .read_file_lines(file_path)
             .map_err(ParseError::NoSuchFile)?;
         let settings = self.get_settings_from_lines(lines);
 
         if settings.keys().len() != 3 {
-            return Err(ParseError::FileInInvalidFormat);
+            return Err(ParseError::FileInInvalidFormat(Error::new(
+                ErrorKind::InvalidData,
+                "Invalid format",
+            )));
         }
         Ok(settings)
     }
@@ -61,32 +64,44 @@ mod tests {
 
     #[test]
     fn empty_file_path() {
-        let settings = SettingsParser("").parse_file();
-        assert!(settings.is_err());
+        let settings = SettingsParser.parse_file("");
+        match settings {
+            Err(ParseError::EmptyFilePath) => assert!(true),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn no_such_file() {
-        let settings = SettingsParser("no_such_file.txt").parse_file();
-        assert!(settings.is_err());
+        let settings = SettingsParser.parse_file("no_such_file.txt");
+        match settings {
+            Err(ParseError::NoSuchFile(_)) => assert!(true),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn file_invalid_format_v1() {
-        let settings = SettingsParser("settings_files_testing/empty.txt").parse_file();
-        assert!(settings.is_err());
+        let settings = SettingsParser.parse_file("settings_files_testing/empty.txt");
+        match settings {
+            Err(ParseError::FileInInvalidFormat(_)) => assert!(true),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn file_invalid_format_v2() {
-        let settings = SettingsParser("settings_files_testing/invalid_format.txt").parse_file();
-        assert!(settings.is_err());
+        let settings = SettingsParser.parse_file("settings_files_testing/invalid_format.txt");
+        match settings {
+            Err(ParseError::FileInInvalidFormat(_)) => assert!(true),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn file_valid_format_v1() {
         let received_settings =
-            SettingsParser("settings_files_testing/valid_format_v1.txt").parse_file();
+            SettingsParser.parse_file("settings_files_testing/valid_format_v1.txt");
 
         let mut expected_settings = HashMap::new();
         expected_settings.insert("tcp_port".to_string(), "127.0.0.1:8080".to_string());
@@ -99,7 +114,7 @@ mod tests {
     #[test]
     fn file_valid_format_v2() {
         let received_settings =
-            SettingsParser("settings_files_testing/valid_format_v1.txt").parse_file();
+            SettingsParser.parse_file("settings_files_testing/valid_format_v1.txt");
 
         let mut expected_settings = HashMap::new();
         expected_settings.insert("download_dir_path".to_string(), "/home".to_string());

@@ -55,8 +55,8 @@ mod tests {
 
     #[test]
     fn client_is_created_correctly() {
-        let settings = SettingsParser("settings_files_testing/valid_format_v2.txt")
-            .parse_file()
+        let settings = SettingsParser
+            .parse_file("settings_files_testing/valid_format_v2.txt")
             .unwrap();
         let client = Client::new(&settings);
         assert!(client.is_ok());

@@ -69,8 +69,8 @@ mod tests {
 
     #[test]
     fn server_is_created_correctly() {
-        let settings = SettingsParser("settings_files_testing/valid_format_v2.txt")
-            .parse_file()
+        let settings = SettingsParser
+            .parse_file("settings_files_testing/valid_format_v2.txt")
             .unwrap();
         let server = Server::new(&settings);
         assert!(server.is_ok());
@@ -78,8 +78,8 @@ mod tests {
 
     #[test]
     fn server_doesnt_run_on_invalid_port() {
-        let settings = SettingsParser("settings_files_testing/valid_format_invalid_port.txt")
-            .parse_file()
+        let settings = SettingsParser
+            .parse_file("settings_files_testing/valid_format_invalid_port.txt")
             .unwrap();
         let server = Server::new(&settings).unwrap();
         assert!(server.run_server().is_err());

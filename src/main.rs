@@ -14,7 +14,7 @@ fn main() {
     }
 
     let settings_path = &args[1];
-    let settings = Arc::new(SettingsParser(settings_path).parse_file().unwrap());
+    let settings = Arc::new(SettingsParser.parse_file(settings_path).unwrap());
 
     let settings_sv = settings.clone();
     let server_thread = thread::spawn(move || {

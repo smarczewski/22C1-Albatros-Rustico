@@ -1,6 +1,8 @@
 use crate::parsers::errors::ParseError;
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::Error;
+use std::io::ErrorKind;
 use std::io::Read;
 use std::string::String;
 
@@ -17,16 +19,19 @@ pub enum BencodeType {
 }
 
 /// # struct Bencode Parser
-/// Contains the path of the file to parse.
+/// Its only pub function is parse_file(), which receives the file to parse.
 /// The file has to be in the bencode format
 /// Supported data types are: integers, strings, lists, and dictionaries.
-pub struct BencodeParser<'a>(pub &'a str);
+pub struct BencodeParser;
 
-impl<'a> BencodeParser<'a> {
+impl BencodeParser {
     /// On success, returns a BencodeType enum which contains the parsed element.
     /// Otherwise, returns ParseError.
-    pub fn parse_file(&self) -> Result<BencodeType, ParseError> {
-        let mut file = File::open(self.0).map_err(ParseError::NoSuchFile)?;
+    pub fn parse_file(&self, path: &str) -> Result<BencodeType, ParseError> {
+        if path.is_empty() {
+            return Err(ParseError::EmptyFilePath);
+        }
+        let mut file = File::open(path).map_err(ParseError::NoSuchFile)?;
         self.parse(&mut file)
     }
 
@@ -39,7 +44,7 @@ impl<'a> BencodeParser<'a> {
     fn parse(&self, file: &mut File) -> Result<BencodeType, ParseError> {
         let mut current_byte = [0u8; 1];
         file.read_exact(&mut current_byte)
-            .map_err(ParseError::FileReadingError)?;
+            .map_err(ParseError::FileInInvalidFormat)?;
 
         let current_char = current_byte[0] as char;
         match current_char {
@@ -48,7 +53,7 @@ impl<'a> BencodeParser<'a> {
             'i' => self.read_integer(file),
             'e' => Ok(BencodeType::End),
             _ if current_char.is_numeric() => self.read_string(current_char, file),
-            _ => Err(ParseError::FileInInvalidFormat),
+            _ => Err(self.invalid_format_error()),
         }
     }
 
@@ -62,7 +67,7 @@ impl<'a> BencodeParser<'a> {
         loop {
             let mut current_byte = [0u8; 1];
             file.read_exact(&mut current_byte)
-                .map_err(ParseError::FileReadingError)?;
+                .map_err(ParseError::FileInInvalidFormat)?;
             let current_char = current_byte[0] as char;
             if current_char == ':' {
                 break;
@@ -74,13 +79,9 @@ impl<'a> BencodeParser<'a> {
             .parse::<u32>()
             .map_err(ParseError::IntConvertionError)?;
 
-        if length == 0 {
-            return Err(ParseError::FileInInvalidFormat);
-        }
-
         let mut buf = vec![0; length as usize];
         file.read_exact(&mut buf)
-            .map_err(ParseError::FileReadingError)?;
+            .map_err(ParseError::FileInInvalidFormat)?;
         Ok(BencodeType::String(buf))
     }
 
@@ -92,20 +93,20 @@ impl<'a> BencodeParser<'a> {
         loop {
             let mut current_byte = [0u8; 1];
             file.read_exact(&mut current_byte)
-                .map_err(ParseError::FileReadingError)?;
-            let current_char = current_byte[0] as char;
-            if current_char == 'e' {
-                break;
-            }
+                .map_err(ParseError::FileInInvalidFormat)?;
 
-            if current_char.is_numeric() {
-                integer_aux.push(current_char);
-            } else {
-                return Err(ParseError::FileInInvalidFormat);
+            let current_char = current_byte[0] as char;
+            match current_char {
+                'e' => break,
+                _ if current_char.is_numeric() => {
+                    integer_aux.push(current_char);
+                }
+                _ => return Err(self.invalid_format_error()),
             }
         }
+
         if integer_aux.is_empty() {
-            return Err(ParseError::FileInInvalidFormat);
+            return Err(self.invalid_format_error());
         }
 
         let integer = integer_aux
@@ -129,7 +130,7 @@ impl<'a> BencodeParser<'a> {
         }
 
         if list.is_empty() {
-            return Err(ParseError::FileInInvalidFormat);
+            return Err(self.invalid_format_error());
         }
 
         Ok(BencodeType::List(list))
@@ -149,21 +150,28 @@ impl<'a> BencodeParser<'a> {
 
             let value = self.parse(file)?;
             let key: String = match (key_aux, &value) {
-                (_, BencodeType::End) => return Err(ParseError::FileInInvalidFormat),
+                (_, BencodeType::End) => {
+                    return Err(self.invalid_format_error());
+                }
                 (BencodeType::String(s), _) => {
                     String::from_utf8(s).map_err(ParseError::StrConvertionError)?
                 }
-                _ => return Err(ParseError::FileInInvalidFormat),
+                _ => {
+                    return Err(self.invalid_format_error());
+                }
             };
-
             dic.insert(key, value);
         }
-
         if dic.is_empty() {
-            return Err(ParseError::FileInInvalidFormat);
+            return Err(self.invalid_format_error());
         }
 
         Ok(BencodeType::Dictionary(dic))
+    }
+
+    /// Creates a FileInInvalidFormat error, and returns it.
+    fn invalid_format_error(&self) -> ParseError {
+        ParseError::FileInInvalidFormat(Error::new(ErrorKind::InvalidData, "Invalid format"))
     }
 }
 
@@ -172,35 +180,58 @@ mod tests {
     use super::*;
 
     #[test]
+    fn empty_file_path() {
+        let integer_parsed = BencodeParser.parse_file("");
+        match integer_parsed {
+            Err(ParseError::EmptyFilePath) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn no_such_file() {
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/not_exist.txt");
+        match integer_parsed {
+            Err(ParseError::NoSuchFile(_)) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn file_empty() {
-        let integer_parsed = BencodeParser("bencoded_files_testing/empty.txt").parse_file();
-        assert!(integer_parsed.is_err());
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/empty.txt");
+        match integer_parsed {
+            Err(ParseError::FileInInvalidFormat(_)) => assert!(true),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn file_invalid_format() {
-        let integer_parsed =
-            BencodeParser("bencoded_files_testing/invalid_format.txt").parse_file();
-        assert!(integer_parsed.is_err());
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/invalid_format.txt");
+        match integer_parsed {
+            Err(ParseError::FileInInvalidFormat(_)) => assert!(true),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn reading_integer() {
-        let integer_parsed = BencodeParser("bencoded_files_testing/integer.txt").parse_file();
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/integer.txt");
         let expected_value = BencodeType::Integer(12345);
         assert_eq!(integer_parsed.unwrap(), expected_value);
     }
 
     #[test]
     fn reading_string() {
-        let integer_parsed = BencodeParser("bencoded_files_testing/string.txt").parse_file();
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/string.txt");
         let expected_value = BencodeType::String("hello bittorrent".as_bytes().to_vec());
         assert_eq!(integer_parsed.unwrap(), expected_value);
     }
 
     #[test]
     fn reading_list() {
-        let integer_parsed = BencodeParser("bencoded_files_testing/list.txt").parse_file();
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/list.txt");
         let list = vec![
             BencodeType::Integer(1),
             BencodeType::Integer(2),
@@ -212,7 +243,7 @@ mod tests {
 
     #[test]
     fn reading_dictionary() {
-        let integer_parsed = BencodeParser("bencoded_files_testing/dictionary.txt").parse_file();
+        let integer_parsed = BencodeParser.parse_file("bencoded_files_testing/dictionary.txt");
         let mut dic = HashMap::new();
         dic.insert(
             "announce".to_string(),
