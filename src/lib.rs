@@ -1,3 +1,4 @@
+pub mod channel_msg_log;
 pub mod client;
 pub mod encoder;
 pub mod logger;
