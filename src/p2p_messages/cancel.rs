@@ -1,4 +1,4 @@
-use crate::p2p_messages::errors::MessageError;
+use crate::errors::MessageError;
 use crate::p2p_messages::message_trait::Message;
 use std::io::{Read, Write};
 

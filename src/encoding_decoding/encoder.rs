@@ -1,4 +1,4 @@
-use crate::parsers::bencode::BencodeType;
+use crate::bencode_type::BencodeType;
 use std::collections::HashMap;
 
 /// # struct Encoder
@@ -17,12 +17,7 @@ impl Encoder {
                     urlencoded_data.push(curr_char);
                 }
                 _ => {
-                    let byte_hex = format!("{:X}", curr_byte);
-                    if byte_hex.len() < 2 {
-                        urlencoded_data = format!("{}%0{}", urlencoded_data, byte_hex);
-                    } else {
-                        urlencoded_data = format!("{}%{}", urlencoded_data, byte_hex);
-                    }
+                    urlencoded_data.push_str(&format!("%{:02X}", curr_byte));
                 }
             }
         }
@@ -93,7 +88,8 @@ impl Encoder {
 mod tests {
 
     use super::*;
-    use crate::parsers::bencode::BencodeParser;
+    use crate::bencode_type::BencodeType;
+    use crate::encoding_decoding::bencode_parser::BencodeParser;
 
     #[test]
     fn bencode_integer() {
@@ -128,7 +124,8 @@ mod tests {
 
     #[test]
     fn bencode_info_dic() {
-        let file_parsed = BencodeParser.parse_file("bencoded_files_testing/dictionary.txt");
+        let file_parsed =
+            BencodeParser.parse_file("files_for_testing/bencoded_files_testing/dictionary.txt");
         if let Ok(BencodeType::Dictionary(d)) = file_parsed {
             let info_value = d.get("info");
             if let Some(v) = info_value {

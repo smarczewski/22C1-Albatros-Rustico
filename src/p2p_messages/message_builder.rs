@@ -1,9 +1,9 @@
 use std::io::Read;
 
+use crate::errors::MessageError;
 use crate::p2p_messages::bitfield::BitfieldMessage;
 use crate::p2p_messages::cancel::CancelMessage;
 use crate::p2p_messages::choke::ChokeMessage;
-use crate::p2p_messages::errors::MessageError;
 use crate::p2p_messages::have::HaveMessage;
 use crate::p2p_messages::interested::InterestedMessage;
 use crate::p2p_messages::keep_alive::KeepAliveMessage;

@@ -1,4 +1,4 @@
-use crate::p2p_messages::errors::MessageError;
+use crate::errors::MessageError;
 use std::io::Write;
 
 pub trait Message {

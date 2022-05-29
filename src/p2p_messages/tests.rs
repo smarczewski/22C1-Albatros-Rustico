@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::p2p_messages::errors::MessageError;
+    use crate::errors::MessageError;
     use crate::p2p_messages::message_builder::MessageBuilder;
     use crate::p2p_messages::message_builder::P2PMessage;
     use crate::p2p_messages::message_trait::Message;

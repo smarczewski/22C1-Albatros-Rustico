@@ -27,7 +27,7 @@ impl Server {
     }
 
     pub fn run_server(self) -> Result<(), Error> {
-        let listener = TcpListener::bind(&self.tcp_port)?;
+        let listener = TcpListener::bind("127.0.0.1:".to_string() + &self.tcp_port)?;
 
         for stream in listener.incoming() {
             let stream = stream.unwrap();
@@ -65,12 +65,12 @@ fn handle_connection(mut stream: TcpStream) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parsers::settings::SettingsParser;
+    use crate::encoding_decoding::settings_parser::SettingsParser;
 
     #[test]
     fn server_is_created_correctly() {
         let settings = SettingsParser
-            .parse_file("settings_files_testing/valid_format_v2.txt")
+            .parse_file("files_for_testing/settings_files_testing/valid_format_v2.txt")
             .unwrap();
         let server = Server::new(&settings);
         assert!(server.is_ok());
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn server_doesnt_run_on_invalid_port() {
         let settings = SettingsParser
-            .parse_file("settings_files_testing/valid_format_invalid_port.txt")
+            .parse_file("files_for_testing/settings_files_testing/valid_format_invalid_port.txt")
             .unwrap();
         let server = Server::new(&settings).unwrap();
         assert!(server.run_server().is_err());

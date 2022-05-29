@@ -1,7 +1,7 @@
-use crate::parsers::errors::ParseError;
+use crate::errors::ParseError;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Error, ErrorKind};
+use std::io::{BufRead, BufReader, Error};
 
 /// # struct Settings Parser
 /// Its only pub function is parse_file(), which receives the file to parse.
@@ -23,10 +23,7 @@ impl SettingsParser {
         let settings = self.get_settings_from_lines(lines);
 
         if settings.keys().len() != 3 {
-            return Err(ParseError::FileInInvalidFormat(Error::new(
-                ErrorKind::InvalidData,
-                "Invalid format",
-            )));
+            return Err(ParseError::InvalidFormat);
         }
         Ok(settings)
     }
@@ -82,29 +79,31 @@ mod tests {
 
     #[test]
     fn file_invalid_format_v1() {
-        let settings = SettingsParser.parse_file("settings_files_testing/empty.txt");
+        let settings =
+            SettingsParser.parse_file("files_for_testing/settings_files_testing/empty.txt");
         match settings {
-            Err(ParseError::FileInInvalidFormat(_)) => assert!(true),
+            Err(ParseError::InvalidFormat) => assert!(true),
             _ => assert!(false),
         }
     }
 
     #[test]
     fn file_invalid_format_v2() {
-        let settings = SettingsParser.parse_file("settings_files_testing/invalid_format.txt");
+        let settings = SettingsParser
+            .parse_file("files_for_testing/settings_files_testing/invalid_format.txt");
         match settings {
-            Err(ParseError::FileInInvalidFormat(_)) => assert!(true),
+            Err(ParseError::InvalidFormat) => assert!(true),
             _ => assert!(false),
         }
     }
 
     #[test]
     fn file_valid_format_v1() {
-        let received_settings =
-            SettingsParser.parse_file("settings_files_testing/valid_format_v1.txt");
+        let received_settings = SettingsParser
+            .parse_file("files_for_testing/settings_files_testing/valid_format_v1.txt");
 
         let mut expected_settings = HashMap::new();
-        expected_settings.insert("tcp_port".to_string(), "127.0.0.1:8080".to_string());
+        expected_settings.insert("tcp_port".to_string(), "6881".to_string());
         expected_settings.insert("logs_dir_path".to_string(), "/home".to_string());
         expected_settings.insert("download_dir_path".to_string(), "/home".to_string());
 
@@ -113,12 +112,12 @@ mod tests {
 
     #[test]
     fn file_valid_format_v2() {
-        let received_settings =
-            SettingsParser.parse_file("settings_files_testing/valid_format_v1.txt");
+        let received_settings = SettingsParser
+            .parse_file("files_for_testing/settings_files_testing/valid_format_v1.txt");
 
         let mut expected_settings = HashMap::new();
         expected_settings.insert("download_dir_path".to_string(), "/home".to_string());
-        expected_settings.insert("tcp_port".to_string(), "127.0.0.1:8080".to_string());
+        expected_settings.insert("tcp_port".to_string(), "6881".to_string());
         expected_settings.insert("logs_dir_path".to_string(), "/home".to_string());
 
         assert_eq!(received_settings.unwrap(), expected_settings);

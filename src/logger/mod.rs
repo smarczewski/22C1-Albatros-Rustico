@@ -1,7 +1,6 @@
 pub mod log_level;
-pub mod logger_error;
+use crate::errors::LoggerError;
 use crate::logger::log_level::LogLevel;
-use crate::logger::logger_error::LoggerError;
 use chrono::DateTime;
 use chrono::Local;
 use std::fs::File;
@@ -99,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_checking_for_existent_file_returns_ok() {
-        let valid_file = "settings_files_testing/valid_file.txt";
+        let valid_file = "files_for_testing/settings_files_testing/valid_file.txt";
         assert!(Result::is_ok(&Logger::check_filepath_exists(valid_file)));
     }
 
