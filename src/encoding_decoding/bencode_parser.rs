@@ -51,7 +51,7 @@ impl BencodeParser {
     /// If the byte is a 'i', it proceeds to read an integer.
     /// If the byte is a numeric char, it proceeds to read a string.
     /// Otherwise, returns ParseError (invalid format)  
-    fn parse(&self, bencoded_data: &Vec<u8>, i: &mut usize) -> Result<BencodeType, ParseError> {
+    fn parse(&self, bencoded_data: &[u8], i: &mut usize) -> Result<BencodeType, ParseError> {
         let current_byte = self.next_byte(bencoded_data, i)?;
 
         let current_char = current_byte as char;
@@ -130,7 +130,7 @@ impl BencodeParser {
     /// Reads a bencoded list from the file.
     /// On success, returns BencodeType::List that contains the list as vec<BencodeType>
     /// Otherwise, returns ParseError.
-    fn read_list(&self, bencoded_data: &Vec<u8>, i: &mut usize) -> Result<BencodeType, ParseError> {
+    fn read_list(&self, bencoded_data: &[u8], i: &mut usize) -> Result<BencodeType, ParseError> {
         let mut list = Vec::<BencodeType>::new();
         loop {
             let current_element = self.parse(bencoded_data, i)?;
@@ -147,7 +147,7 @@ impl BencodeParser {
     /// Otherwise, returns ParseError.
     fn read_dictionary(
         &self,
-        bencoded_data: &Vec<u8>,
+        bencoded_data: &[u8],
         i: &mut usize,
     ) -> Result<BencodeType, ParseError> {
         let mut dic = HashMap::new();
