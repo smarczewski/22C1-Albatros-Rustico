@@ -1,0 +1,1 @@
+[HARDCODED_DEBUG]  [2022-06-01 22:44:17] Mensaje de descarga completa del thread 1

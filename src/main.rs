@@ -6,7 +6,9 @@ use std::env;
 use std::sync::Arc;
 use std::thread;
 
-fn main() {
+
+
+fn main(){
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
         println!("Invalid number of arguments");
@@ -31,4 +33,5 @@ fn main() {
 
     client_thread.join().unwrap();
     server_thread.join().unwrap();
+    
 }
