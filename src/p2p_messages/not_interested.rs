@@ -8,8 +8,8 @@ pub struct NotInterestedMessage {
     id: u8,
 }
 impl NotInterestedMessage {
-    pub fn new() -> Result<NotInterestedMessage, MessageError> {
-        Ok(NotInterestedMessage { _length: 1, id: 3 })
+    pub fn new() -> NotInterestedMessage {
+        NotInterestedMessage { _length: 1, id: 3 }
     }
 
     pub fn read_msg(length: u32) -> Result<NotInterestedMessage, MessageError> {
@@ -17,7 +17,7 @@ impl NotInterestedMessage {
             return Err(MessageError::CreationError);
         }
 
-        NotInterestedMessage::new()
+        Ok(NotInterestedMessage::new())
     }
 }
 
@@ -36,5 +36,11 @@ impl Message for NotInterestedMessage {
             .map_err(MessageError::SendingError)?;
         stream.flush().unwrap();
         Ok(())
+    }
+}
+
+impl Default for NotInterestedMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }

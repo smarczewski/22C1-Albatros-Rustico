@@ -9,8 +9,8 @@ pub struct InterestedMessage {
 }
 
 impl InterestedMessage {
-    pub fn new() -> Result<InterestedMessage, MessageError> {
-        Ok(InterestedMessage { _length: 1, id: 2 })
+    pub fn new() -> InterestedMessage {
+        InterestedMessage { _length: 1, id: 2 }
     }
 
     pub fn read_msg(length: u32) -> Result<InterestedMessage, MessageError> {
@@ -18,7 +18,7 @@ impl InterestedMessage {
             return Err(MessageError::CreationError);
         }
 
-        InterestedMessage::new()
+        Ok(InterestedMessage::new())
     }
 }
 
@@ -35,7 +35,14 @@ impl Message for InterestedMessage {
         stream
             .write_all(&self.id.to_be_bytes())
             .map_err(MessageError::SendingError)?;
+
         stream.flush().unwrap();
         Ok(())
+    }
+}
+
+impl Default for InterestedMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -62,7 +62,7 @@ impl MessageBuilder {
         let length = u32::from_be_bytes(len_buf);
 
         if length == 0 {
-            return Ok(P2PMessage::KeepAlive(KeepAliveMessage::new()?));
+            return Ok(P2PMessage::KeepAlive(KeepAliveMessage::new()));
         }
 
         let mut id_buf = [0u8; 1];
@@ -70,7 +70,6 @@ impl MessageBuilder {
             .read_exact(&mut id_buf)
             .map_err(MessageError::ReadingError)?;
         let id = u8::from_be_bytes(id_buf);
-
         match id {
             0 => Ok(P2PMessage::Choke(ChokeMessage::read_msg(length)?)),
             1 => Ok(P2PMessage::Unchoke(UnchokeMessage::read_msg(length)?)),

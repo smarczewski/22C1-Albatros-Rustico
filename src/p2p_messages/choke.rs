@@ -9,8 +9,8 @@ pub struct ChokeMessage {
 }
 
 impl ChokeMessage {
-    pub fn new() -> Result<ChokeMessage, MessageError> {
-        Ok(ChokeMessage { _length: 1, id: 0 })
+    pub fn new() -> ChokeMessage {
+        ChokeMessage { _length: 1, id: 0 }
     }
 
     pub fn read_msg(length: u32) -> Result<ChokeMessage, MessageError> {
@@ -18,7 +18,7 @@ impl ChokeMessage {
             return Err(MessageError::CreationError);
         }
 
-        ChokeMessage::new()
+        Ok(ChokeMessage::new())
     }
 }
 
@@ -38,5 +38,11 @@ impl Message for ChokeMessage {
         stream.flush().unwrap();
 
         Ok(())
+    }
+}
+
+impl Default for ChokeMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }

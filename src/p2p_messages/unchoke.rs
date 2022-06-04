@@ -9,8 +9,8 @@ pub struct UnchokeMessage {
 }
 
 impl UnchokeMessage {
-    pub fn new() -> Result<UnchokeMessage, MessageError> {
-        Ok(UnchokeMessage { _length: 1, id: 1 })
+    pub fn new() -> UnchokeMessage {
+        UnchokeMessage { _length: 1, id: 1 }
     }
 
     pub fn read_msg(length: u32) -> Result<UnchokeMessage, MessageError> {
@@ -18,7 +18,7 @@ impl UnchokeMessage {
             return Err(MessageError::CreationError);
         }
 
-        UnchokeMessage::new()
+        Ok(UnchokeMessage::new())
     }
 }
 
@@ -38,5 +38,11 @@ impl Message for UnchokeMessage {
         stream.flush().unwrap();
 
         Ok(())
+    }
+}
+
+impl Default for UnchokeMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }

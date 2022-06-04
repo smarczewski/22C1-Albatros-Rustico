@@ -37,12 +37,12 @@ impl BencodeParser {
     /// Receives the Vec<u8> to be parsed.
     /// On success, returns a BencodeType enum which contains the parsed element.
     /// Otherwise, returns ParseError.
-    pub fn parse_vec(&self, bencoded_data: Vec<u8>) -> Result<BencodeType, ParseError> {
+    pub fn parse_vec(&self, bencoded_data: &[u8]) -> Result<BencodeType, ParseError> {
         if bencoded_data.is_empty() {
             return Err(ParseError::EmptyVector);
         }
         let mut index = 0;
-        self.parse(&bencoded_data, &mut index)
+        self.parse(bencoded_data, &mut index)
     }
 
     ///Reads a byte from the file, and then decides what to do according to the byte reading.

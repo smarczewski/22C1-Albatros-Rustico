@@ -47,15 +47,15 @@ fn handle_connection(mut stream: TcpStream) {
         // test responses
         match msg {
             P2PMessage::Interested(_msg) => {
-                let response = UnchokeMessage::new().unwrap();
+                let response = UnchokeMessage::new();
                 response.send_msg(&mut stream).unwrap();
             }
             P2PMessage::NotInterested(_msg) => {
-                let response = ChokeMessage::new().unwrap();
+                let response = ChokeMessage::new();
                 response.send_msg(&mut stream).unwrap();
             }
             _ => {
-                let response = KeepAliveMessage::new().unwrap();
+                let response = KeepAliveMessage::new();
                 response.send_msg(&mut stream).unwrap();
             }
         }

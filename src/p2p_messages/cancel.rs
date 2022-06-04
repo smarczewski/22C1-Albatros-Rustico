@@ -12,18 +12,14 @@ pub struct CancelMessage {
 }
 
 impl CancelMessage {
-    pub fn new(
-        piece_index: u32,
-        begin: u32,
-        block_length: u32,
-    ) -> Result<CancelMessage, MessageError> {
-        Ok(CancelMessage {
+    pub fn new(piece_index: u32, begin: u32, block_length: u32) -> CancelMessage {
+        CancelMessage {
             _length: 13,
             id: 8,
             piece_index,
             begin,
             block_length,
-        })
+        }
     }
 
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<CancelMessage, MessageError> {
@@ -45,7 +41,7 @@ impl CancelMessage {
             .map_err(MessageError::ReadingError)?;
         let block_length = u32::from_be_bytes(buf);
 
-        CancelMessage::new(piece_index, begin, block_length)
+        Ok(CancelMessage::new(piece_index, begin, block_length))
     }
 }
 

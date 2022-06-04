@@ -8,8 +8,8 @@ pub struct KeepAliveMessage {
 }
 
 impl KeepAliveMessage {
-    pub fn new() -> Result<KeepAliveMessage, MessageError> {
-        Ok(KeepAliveMessage { _length: 0 })
+    pub fn new() -> KeepAliveMessage {
+        KeepAliveMessage { _length: 0 }
     }
 }
 
@@ -26,5 +26,11 @@ impl Message for KeepAliveMessage {
         stream.flush().unwrap();
 
         Ok(())
+    }
+}
+
+impl Default for KeepAliveMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }

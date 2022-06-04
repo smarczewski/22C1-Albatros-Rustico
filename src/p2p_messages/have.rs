@@ -10,12 +10,12 @@ pub struct HaveMessage {
 }
 
 impl HaveMessage {
-    pub fn new(piece_index: u32) -> Result<HaveMessage, MessageError> {
-        Ok(HaveMessage {
+    pub fn new(piece_index: u32) -> HaveMessage {
+        HaveMessage {
             _length: 5,
             id: 4,
             piece_index,
-        })
+        }
     }
 
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<HaveMessage, MessageError> {
@@ -28,7 +28,11 @@ impl HaveMessage {
             .read_exact(&mut buf)
             .map_err(MessageError::ReadingError)?;
 
-        HaveMessage::new(u32::from_be_bytes(buf))
+        Ok(HaveMessage::new(u32::from_be_bytes(buf)))
+    }
+
+    pub fn get_piece_index(&self) -> u32 {
+        self.piece_index
     }
 }
 

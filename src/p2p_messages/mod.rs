@@ -5,6 +5,7 @@ mod tests;
 pub mod bitfield;
 pub mod cancel;
 pub mod choke;
+pub mod handshake;
 pub mod have;
 pub mod interested;
 pub mod keep_alive;

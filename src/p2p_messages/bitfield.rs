@@ -30,6 +30,10 @@ impl BitfieldMessage {
 
         BitfieldMessage::new(pieces)
     }
+
+    pub fn get_pieces(&self) -> Vec<u8> {
+        self.pieces.clone()
+    }
 }
 
 impl Message for BitfieldMessage {

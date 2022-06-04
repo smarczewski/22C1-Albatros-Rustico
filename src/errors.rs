@@ -24,14 +24,12 @@ pub enum ParseError {
 
 #[derive(Debug)]
 pub enum RequestError {
-    InvalidURL,
     TorrentInInvalidFormat(TypeError),
     StrConvertionError(FromUtf8Error),
     TlsConnectionError(TlsError),
     CannotGetResponse,
     ParserError(ParseError),
-    InvalidResponse(TypeError),
-    PeerListIsEmpty,
+    InvalidResponse,
 }
 
 #[derive(Debug)]
@@ -53,5 +51,12 @@ pub enum ClientError {
     EmptyTorrentPath,
     NoSuchTorrentFile(ParseError),
     TorrentInInvalidFormat(TypeError),
+    StrConvertionError(FromUtf8Error),
     InvalidSettings,
+    MessageReadingError(MessageError),
+    TrackerConnectionError,
+    InvalidTrackerResponse,
+    CannotConnectToPeer,
+    ProtocolError,
+    StoringPieceError,
 }

@@ -6,7 +6,7 @@ use crate::encoding_decoding::encoder::Encoder;
 use crate::errors::*;
 
 use native_tls::TlsConnector;
-use std::io::{BufRead, Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::string::String;
 
@@ -18,9 +18,9 @@ pub struct TrackerRequest {
     info_hash: Vec<u8>,
     peer_id: Vec<u8>,
     port: String,
-    uploaded: i64,
-    downloaded: i64,
-    left: i64,
+    uploaded: u32,
+    downloaded: u32,
+    left: u32,
     event: String,
 }
 
@@ -28,38 +28,26 @@ impl TrackerRequest {
     // Creates a new request from a decoded torrent file and a client.
     // On success, returns the request.
     //Otherwise, returns error.
-    pub fn new(torrent: BencodeType, client: &Client) -> Result<TrackerRequest, RequestError> {
-        let url_aux = torrent
-            .get_value_from_dict("announce")
-            .map_err(RequestError::TorrentInInvalidFormat)?
-            .get_string()
-            .map_err(RequestError::TorrentInInvalidFormat)?;
+    pub fn new(client: &Client) -> TrackerRequest {
+        let torrent_info = client.get_torrent_info();
 
-        let length = torrent
-            .get_value_from_dict("info")
-            .map_err(RequestError::TorrentInInvalidFormat)?
-            .get_value_from_dict("length")
-            .map_err(RequestError::TorrentInInvalidFormat)?
-            .get_integer()
-            .map_err(RequestError::TorrentInInvalidFormat)?;
-
-        Ok(TrackerRequest {
-            url: String::from_utf8(url_aux).map_err(RequestError::StrConvertionError)?,
-            info_hash: client.info_hash(),
-            peer_id: client.peer_id(),
-            port: client.port(),
+        TrackerRequest {
+            url: torrent_info.get_announce(),
+            info_hash: torrent_info.get_info_hash(),
+            peer_id: client.get_peer_id(),
+            port: client.get_port(),
             uploaded: 0,
             downloaded: 0,
-            left: length,
+            left: torrent_info.get_length(),
             event: "started".to_string(),
-        })
+        }
     }
 
     /// Sends the http request to the tracker.
     /// On success, returns the tracker response (decoded).
     /// Otherwise, returns error
     pub fn send_request(&self) -> Result<BencodeType, RequestError> {
-        let domain = self.get_domain(&self.url)?;
+        let domain = self.get_domain(&self.url);
         let address = domain.clone() + ":" + TRACKER_PORT;
 
         let connector = TlsConnector::new().map_err(RequestError::TlsConnectionError)?;
@@ -70,8 +58,8 @@ impl TrackerRequest {
         let peer_id = Encoder.urlencode(self.peer_id.as_slice());
 
         let params = format!(
-            "{}?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}&event={}",
-            self.url,
+            "https://{}/announce?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}&event={}",
+            domain,
             info_hash,
             peer_id,
             self.port,
@@ -88,33 +76,37 @@ impl TrackerRequest {
         self.get_response(res)
     }
 
-    fn get_domain(&self, url: &str) -> Result<String, RequestError> {
-        if url.contains("https://") && url.contains("/announce") {
-            return Ok(url.replace("https://", "").replace("/announce", ""));
-        } else if url.contains("http://") && url.contains("/announce") {
-            return Ok(url.replace("http://", "").replace("/announce", ""));
+    fn get_domain(&self, url: &str) -> String {
+        let url_aux = url
+            .replace("http://", "")
+            .replace("https://", "")
+            .replace("/announce", "");
+        if url_aux.contains(':') {
+            if let Some((domain, _port)) = url_aux.split_once(':') {
+                return domain.to_string();
+            }
         }
-        Err(RequestError::InvalidURL)
+        url_aux
     }
 
-    fn get_response(&self, response: Vec<u8>) -> Result<BencodeType, RequestError> {
-        let mut respone_lines = vec![];
-        let lines = Cursor::new(&response);
-
-        lines.split(b'\n').for_each(|line| {
-            if let Ok(l) = line {
-                respone_lines.push(l);
+    fn get_response(&self, response_aux: Vec<u8>) -> Result<BencodeType, RequestError> {
+        // We need to skip the first 9 lines because the response contains
+        // information that we don't need (Request code, Date, etc.)
+        let mut new_line_counter = 0;
+        let mut idx = 0;
+        while new_line_counter < 9 {
+            if response_aux[idx] == (b'\n') {
+                new_line_counter += 1;
             }
-        });
-
-        // last line contains the information we need
-        if let Some(r) = respone_lines.pop() {
-            let parsed_res = BencodeParser.parse_vec(r);
-            if let Ok(v) = parsed_res {
-                return Ok(v);
-            }
+            idx += 1;
         }
-        Err(RequestError::CannotGetResponse)
+        let (_, response) = response_aux.split_at(idx);
+        // Then, we have to parse the response
+        let parsed_res = BencodeParser.parse_vec(response);
+        match parsed_res {
+            Ok(r) => Ok(r),
+            Err(_) => Err(RequestError::CannotGetResponse),
+        }
     }
 }
 

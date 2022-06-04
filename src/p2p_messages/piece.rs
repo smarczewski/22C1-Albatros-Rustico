@@ -40,10 +40,22 @@ impl PieceMessage {
 
         let mut block = vec![0u8; (length - 9) as usize];
         stream
-            .read(&mut block)
+            .read_exact(&mut block)
             .map_err(MessageError::ReadingError)?;
 
         PieceMessage::new(piece_index, begin, block)
+    }
+
+    pub fn get_piece_index(&self) -> u32 {
+        self.piece_index
+    }
+
+    pub fn get_begin(&self) -> u32 {
+        self.begin
+    }
+
+    pub fn get_block(&self) -> Vec<u8> {
+        self.block.clone()
     }
 }
 
