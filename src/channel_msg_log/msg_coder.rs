@@ -14,4 +14,11 @@ impl MsgCoder {
     pub fn generate_file_completely_downloaded_message(message: String) -> String {
         format!("FINISH|{}", message)
     }
+    pub fn generate_generic_message(message: String) -> String {
+        format!("GENERIC|{}", message)
+    }
+
+    pub fn generate_kill_logging_message(message: String) -> String {
+        format!("KILL|{}", message)
+    }
 }

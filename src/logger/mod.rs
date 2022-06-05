@@ -31,7 +31,8 @@ impl Logger {
         match Logger::check_filepath_exists(file_path) {
             Ok(file) => Ok(file),
             Err(_e) => {
-                let default_file = File::create(default_logger_file)?;
+                let concat_path = format!("{}/{}", file_path, default_logger_file);
+                let default_file = File::create(concat_path)?;
                 Ok(default_file)
             }
         }
@@ -53,6 +54,7 @@ impl Logger {
             let returned_logger = Logger { level, file };
             Ok(returned_logger)
         } else {
+            println!("Fallo la creacion del archivo para loggear");
             Err(LoggerError::FailedToCreateError)
         }
     }
@@ -62,23 +64,36 @@ impl Logger {
     //that was set when the logger was created. If not, the message will not be
     //written to the log file
     pub fn log(&mut self, nivel_log: &str, msje_log: &str) {
-        let desired_lvl = Logger::match_log_level(nivel_log) as u32;
-        let logger_lvl = self.level as u32;
+        let _bytes_written = self
+            .file
+            .write(Logger::create_log_record_two(msje_log, nivel_log).as_bytes());
 
-        if desired_lvl < logger_lvl {
-            println!("The desired logging level is lower than the one it was set. Unable to log");
-        } else {
-            //let mensaje_loggeado = Logger::create_log_record(msje_log).as_bytes();
-            let _bytes_written = self
-                .file
-                .write(Logger::create_log_record(msje_log).as_bytes());
-        }
+        //let desired_lvl = Logger::match_log_level(nivel_log) as u32;
+        //let logger_lvl = self.level as u32;
+        //
+        //        //if desired_lvl < logger_lvl {
+        //        //    println!("The desired logging level is lower than the one it was set. Unable to log");
+        //        //} else {
+        //        //    let _bytes_written = self
+        //        //        .file
+        //        //        .write(Logger::create_log_record_two(msje_log, nivel_log).as_bytes());
+        //        //.write(Logger::create_log_record(msje_log).as_bytes());
+        //}
     }
 
-    fn create_log_record(msg_to_log: &str) -> String {
+    //fn create_log_record(msg_to_log: &str) -> String {
+    //    let local: DateTime<Local> = Local::now();
+    //    let local = local.format("%Y-%m-%d %H:%M:%S").to_string();
+    //    let debug_level = "HARDCODED_DEBUG".to_string();
+    //    let copy_msg = msg_to_log;
+    //    let junto = format!("[{}]  [{}] {}\n", debug_level, local, copy_msg);
+    //    junto
+    //}
+
+    fn create_log_record_two(msg_to_log: &str, msg_level: &str) -> String {
         let local: DateTime<Local> = Local::now();
         let local = local.format("%Y-%m-%d %H:%M:%S").to_string();
-        let debug_level = "HARDCODED_DEBUG".to_string();
+        let debug_level = msg_level.to_string();
         let copy_msg = msg_to_log;
         let junto = format!("[{}]  [{}] {}\n", debug_level, local, copy_msg);
         junto

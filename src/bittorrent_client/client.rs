@@ -4,6 +4,10 @@ use crate::bittorrent_client::torrent_info::TorrentInformation;
 use crate::bittorrent_client::tracker_request::TrackerRequest;
 use crate::constants::*;
 use crate::errors::*;
+//BEGIN: agregado para meter funcionalidad de log
+use crate::channel_msg_log::msg_coder::MsgCoder;
+use std::sync::mpsc::{Sender};
+//END
 use crate::peer_connection::PeerConnection;
 
 use sha1::{Digest, Sha1};
@@ -44,19 +48,24 @@ impl Client {
         }
         Err(ClientError::InvalidSettings)
     }
-
-    pub fn run_client(&mut self) -> Result<(), ClientError> {
+    pub fn run_client(&mut self, tx: Sender<String>) -> Result<(), ClientError> {
         let response = self.connect_to_tracker()?;
         let mut peer_list = self.get_peer_list(&response)?;
 
         loop {
             let peer = Peer::new(&mut peer_list)?;
             if let Ok(mut peer_conn) = PeerConnection::new(self, peer) {
+                if tx.send(MsgCoder::generate_new_connection_message("Connected to peer successfully".to_string())).is_err(){
+                    println!("Failed to log succesful peer connection");
+                }
                 println!("Connected to peer successfully!");
                 if let Ok((idx, piece)) = peer_conn.download_piece() {
                     if self.piece_is_valid(idx, &piece)
                         && self.store_piece_in_file(idx, piece).is_ok()
                     {
+                        if tx.send(MsgCoder::generate_download_complete_message("Chunk downloaded successfully".to_string())).is_err(){
+                            println!("Failed to log download complete message");
+                        }
                         break;
                     }
                 } else {
@@ -65,6 +74,9 @@ impl Client {
             } else {
                 println!("Cannot connect to peer");
             }
+        }
+        if tx.send(MsgCoder::generate_kill_logging_message("Completed download".to_string())).is_err(){
+            println!("Failed to log download complete message");
         }
         Ok(())
     }

@@ -11,9 +11,23 @@ impl MsgDecoder {
             2
         } else if message_type == "FINISH" {
             -1
+        } else if message_type == "KILL" {
+            -99
+        } else if message_type == "GENERIC" {
+            1
         } else {
             0
         };
         (message_content.to_string(), times_to_be_added)
+    }
+
+    pub fn get_log_level(message: String) -> String {
+        let mut message_it = message.split('|');
+        let message_type = message_it.next().unwrap();
+        if message_type == "INCOMPLETE" {
+            "ERROR".to_string()
+        } else {
+            "INFO".to_string()
+        }
     }
 }

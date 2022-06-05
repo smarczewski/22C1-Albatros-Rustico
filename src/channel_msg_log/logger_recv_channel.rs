@@ -42,7 +42,12 @@ impl LoggerRecvChannel {
     }
     //blocking thread function
     fn log(&mut self, message: &str) {
-        self.logger.log("ALevel", message);
+        //AGREGADO PARA METER EL LOG LEVEL
+        let msg_copy = message.to_string();
+        let log_level = MsgDecoder::get_log_level(msg_copy);
+        //FIN DE AGREGADO
+        //self.logger.log("ALevel", message);
+        self.logger.log(&log_level, message);
     }
 }
 
