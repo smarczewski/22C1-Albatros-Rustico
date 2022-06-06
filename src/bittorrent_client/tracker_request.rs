@@ -50,30 +50,23 @@ impl TrackerRequest {
         let domain = self.get_domain(&self.url);
         let address = domain.clone() + ":" + TRACKER_PORT;
 
-        let connector = TlsConnector::new().map_err(RequestError::TlsConnectionError)?;
-        let tcp_stream = TcpStream::connect(&address).unwrap();
-        let mut stream = connector.connect(&domain, tcp_stream).unwrap();
+        if let (Ok(connector), Ok(tcp_stream)) = (TlsConnector::new(), TcpStream::connect(&address))
+        {
+            if let Ok(mut stream) = connector.connect(&domain, tcp_stream) {
+                let info_hash = Encoder.urlencode(self.info_hash.as_slice());
+                let peer_id = Encoder.urlencode(self.peer_id.as_slice());
 
-        let info_hash = Encoder.urlencode(self.info_hash.as_slice());
-        let peer_id = Encoder.urlencode(self.peer_id.as_slice());
+                let req = self.build_request(&domain, &info_hash, &peer_id);
 
-        let params = format!(
-            "https://{}/announce?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}&event={}",
-            domain,
-            info_hash,
-            peer_id,
-            self.port,
-            self.uploaded,
-            self.downloaded,
-            self.left,
-            self.event
-        );
-        let req = format!("GET {} HTTP/1.0\r\n\r\n", params);
-
-        stream.write_all(req.as_bytes()).unwrap();
-        let mut res = vec![];
-        stream.read_to_end(&mut res).unwrap();
-        self.get_response(res)
+                if stream.write_all(req.as_bytes()).is_ok() {
+                    let mut res = vec![];
+                    if stream.read_to_end(&mut res).is_ok() {
+                        return self.get_response(res);
+                    }
+                }
+            }
+        }
+        Err(RequestError::CannotConnectToTracker)
     }
 
     fn get_domain(&self, url: &str) -> String {
@@ -89,13 +82,31 @@ impl TrackerRequest {
         url_aux
     }
 
+    fn build_request(&self, domain: &str, info_hash: &str, peer_id: &str) -> String {
+        let params = format!(
+            "https://{}/announce?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}&event={}",
+            domain,
+            info_hash,
+            peer_id,
+            self.port,
+            self.uploaded,
+            self.downloaded,
+            self.left,
+            self.event
+        );
+
+        format!("GET {} HTTP/1.0\r\n\r\n", params)
+    }
+
     fn get_response(&self, response_aux: Vec<u8>) -> Result<BencodeType, RequestError> {
         // We need to skip the first 9 lines because the response contains
         // information that we don't need (Request code, Date, etc.)
         let mut new_line_counter = 0;
         let mut idx = 0;
-        while new_line_counter < 9 {
-            if response_aux[idx] == (b'\n') {
+        while new_line_counter < LINES_BEFORE_RES {
+            if idx >= response_aux.len() {
+                return Err(RequestError::CannotGetResponse);
+            } else if response_aux[idx] == (b'\n') {
                 new_line_counter += 1;
             }
             idx += 1;
@@ -115,7 +126,6 @@ mod tests {
     use super::*;
     use crate::encoding_decoding::settings_parser::SettingsParser;
     use crate::errors::ClientError;
-    use std::collections::HashMap;
 
     fn urldecode(data: &str) -> Vec<u8> {
         let mut decoded_data = Vec::<u8>::new();
@@ -149,9 +159,8 @@ mod tests {
     fn check_request_creation() {
         let torrent_path =
             "files_for_testing/torrents_tracker_request/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-        let benc_torrent = BencodeParser.parse_file(&torrent_path).unwrap();
         let client = create_client(&torrent_path).unwrap();
-        let request = TrackerRequest::new(benc_torrent, &client).unwrap();
+        let request = TrackerRequest::new(&client);
 
         let expected_req = TrackerRequest {
             url: "https://torrent.ubuntu.com/announce".to_string(),
@@ -168,26 +177,11 @@ mod tests {
     }
 
     #[test]
-    fn request_creation_error() {
-        let torrent_path =
-            "files_for_testing/torrents_tracker_request/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-        let benc_torrent = BencodeType::Dictionary(HashMap::new());
-        let client = create_client(&torrent_path).unwrap();
-        let request = TrackerRequest::new(benc_torrent, &client);
-
-        match request {
-            Err(RequestError::TorrentInInvalidFormat(_)) => assert!(true),
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
     fn send_request() {
         let torrent_path =
             "files_for_testing/torrents_tracker_request/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-        let benc_torrent = BencodeParser.parse_file(&torrent_path).unwrap();
         let client = create_client(&torrent_path).unwrap();
-        let request = TrackerRequest::new(benc_torrent, &client).unwrap();
+        let request = TrackerRequest::new(&client);
         let response = request.send_request().unwrap();
 
         let x1 = response.get_value_from_dict("interval");
@@ -209,13 +203,12 @@ mod tests {
     #[test]
     fn error_send_request_invalid_url() {
         let torrent_path = "files_for_testing/torrents_tracker_request/invalid_url.torrent";
-        let benc_torrent = BencodeParser.parse_file(&torrent_path).unwrap();
         let client = create_client(&torrent_path).unwrap();
-        let request = TrackerRequest::new(benc_torrent, &client).unwrap();
+        let request = TrackerRequest::new(&client);
         let response = request.send_request();
 
         match response {
-            Err(RequestError::InvalidURL) => assert!(true),
+            Err(RequestError::CannotConnectToTracker) => assert!(true),
             _ => assert!(false),
         }
     }
@@ -223,9 +216,8 @@ mod tests {
     #[test]
     fn error_send_request_invalid_info() {
         let torrent_path = "files_for_testing/torrents_tracker_request/invalid_info.torrent";
-        let benc_torrent = BencodeParser.parse_file(&torrent_path).unwrap();
         let client = create_client(&torrent_path).unwrap();
-        let request = TrackerRequest::new(benc_torrent, &client).unwrap();
+        let request = TrackerRequest::new(&client);
         let response = request.send_request().unwrap();
 
         let x = response.get_value_from_dict("failure reason");

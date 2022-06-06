@@ -4,6 +4,8 @@ use crate::encoding_decoding::encoder::Encoder;
 use crate::errors::ClientError;
 use sha1::{Digest, Sha1};
 
+/// # struct TorrentInformation
+/// Contains the information of torrent file.
 pub struct TorrentInformation {
     name: String,
     announce: String,
@@ -14,6 +16,10 @@ pub struct TorrentInformation {
 }
 
 impl TorrentInformation {
+    /// Receives a path of the torrent file, then parses it.
+    /// On success, returns a TorrentInformation which contains the information
+    /// of the parsed torrent file.
+    /// Otherwise, returns ClientError (NoSuchTorrentFile or TorrentInInvalidFormat)
     pub fn new(torrent_path: &str) -> Result<TorrentInformation, ClientError> {
         let benc_torrent = BencodeParser
             .parse_file(torrent_path)
@@ -78,7 +84,7 @@ fn read_announce(torrent: &BencodeType) -> Result<String, ClientError> {
         .get_string()
         .map_err(ClientError::TorrentInInvalidFormat)?;
 
-    String::from_utf8(url_aux).map_err(ClientError::StrConvertionError)
+    Ok(String::from_utf8_lossy(&url_aux).to_string())
 }
 
 fn read_name(info_dict: &BencodeType) -> Result<String, ClientError> {
@@ -88,7 +94,7 @@ fn read_name(info_dict: &BencodeType) -> Result<String, ClientError> {
         .get_string()
         .map_err(ClientError::TorrentInInvalidFormat)?;
 
-    String::from_utf8(name).map_err(ClientError::StrConvertionError)
+    Ok(String::from_utf8_lossy(&name).to_string())
 }
 
 fn read_length(info_dict: &BencodeType) -> Result<i64, ClientError> {

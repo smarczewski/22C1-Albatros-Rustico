@@ -55,18 +55,26 @@ impl LoggerRecvChannel {
 mod tests {
     use super::*;
     use crate::channel_msg_log::msg_coder::MsgCoder;
+    use std::fs;
+    use std::path::PathBuf;
     use std::sync::mpsc;
     use std::sync::mpsc::{Receiver, Sender};
     #[test]
     fn test_channel_creates_correctly() {
-        let logger = Logger::logger_create("DEBUG", "inexistent_file.txt").unwrap();
+        let srcdir = PathBuf::from("./files_for_testing");
+        let src_dir = fs::canonicalize(&srcdir).unwrap();
+        let abs_path = format!("{}/", src_dir.as_path().display().to_string());
+        let logger = Logger::logger_create("DEBUG", &abs_path).unwrap();
         let (_tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         let _recv_channel = LoggerRecvChannel::new(rx, logger);
     }
 
     #[test]
     fn test_channel_reduces_counter_value_correctly() {
-        let logger = Logger::logger_create("DEBUG", "inexistent_file.txt").unwrap();
+        let srcdir = PathBuf::from("./files_for_testing");
+        let src_dir = fs::canonicalize(&srcdir).unwrap();
+        let abs_path = format!("{}/", src_dir.as_path().display().to_string());
+        let logger = Logger::logger_create("DEBUG", &abs_path).unwrap();
         let (_tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         let mut recv_channel = LoggerRecvChannel::new(rx, logger);
         recv_channel.reduce_counter(1);
@@ -75,7 +83,10 @@ mod tests {
 
     #[test]
     fn test_channel_fails_to_receive_if_counter_equals_zero() {
-        let logger = Logger::logger_create("DEBUG", "inexistent_file.txt").unwrap();
+        let srcdir = PathBuf::from("./files_for_testing");
+        let src_dir = fs::canonicalize(&srcdir).unwrap();
+        let abs_path = format!("{}/", src_dir.as_path().display().to_string());
+        let logger = Logger::logger_create("DEBUG", &abs_path).unwrap();
         let (_tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         let mut recv_channel = LoggerRecvChannel::new(rx, logger);
         recv_channel.reduce_counter(1);
@@ -84,7 +95,10 @@ mod tests {
 
     #[test]
     fn test_channel_reduces_counter_by_one_while_receiving_a_download_finished_message() {
-        let logger = Logger::logger_create("DEBUG", "inexistent_file.txt").unwrap();
+        let srcdir = PathBuf::from("./files_for_testing");
+        let src_dir = fs::canonicalize(&srcdir).unwrap();
+        let abs_path = format!("{}/", src_dir.as_path().display().to_string());
+        let logger = Logger::logger_create("DEBUG", &abs_path).unwrap();
         let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         let mut recv_channel = LoggerRecvChannel::new(rx, logger);
         let mensaje_de_conexion = format!("Mensaje de descarga completa del thread 1");

@@ -12,6 +12,7 @@ pub struct PieceMessage {
 }
 
 impl PieceMessage {
+    /// Create and returns a Piece Message.
     pub fn new(piece_index: u32, begin: u32, block: Vec<u8>) -> Result<PieceMessage, MessageError> {
         if block.is_empty() {
             return Err(MessageError::CreationError);
@@ -26,6 +27,7 @@ impl PieceMessage {
         })
     }
 
+    /// Reads a Piece Message from a stream and returns the message.
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<PieceMessage, MessageError> {
         let mut buf = [0u8; 4];
         stream
@@ -69,6 +71,7 @@ impl Message for PieceMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Piece Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

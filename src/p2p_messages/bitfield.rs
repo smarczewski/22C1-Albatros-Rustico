@@ -10,6 +10,7 @@ pub struct BitfieldMessage {
 }
 
 impl BitfieldMessage {
+    /// Create and returns a Bitfield Message.
     pub fn new(pieces: Vec<u8>) -> Result<BitfieldMessage, MessageError> {
         if pieces.is_empty() {
             return Err(MessageError::CreationError);
@@ -22,6 +23,7 @@ impl BitfieldMessage {
         })
     }
 
+    /// Reads a Bitfield Message from a stream and returns the message.
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<BitfieldMessage, MessageError> {
         let mut pieces = vec![0u8; (length - 1) as usize];
         stream
@@ -31,6 +33,7 @@ impl BitfieldMessage {
         BitfieldMessage::new(pieces)
     }
 
+    /// Returns vector of pieces
     pub fn get_pieces(&self) -> Vec<u8> {
         self.pieces.clone()
     }
@@ -43,6 +46,7 @@ impl Message for BitfieldMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Bitfield Message in a received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

@@ -9,10 +9,12 @@ pub struct ChokeMessage {
 }
 
 impl ChokeMessage {
+    /// Create and returns a Choke Message.
     pub fn new() -> ChokeMessage {
         ChokeMessage { _length: 1, id: 0 }
     }
 
+    /// Reads a Choke Message from a stream and returns the message.
     pub fn read_msg(length: u32) -> Result<ChokeMessage, MessageError> {
         if length != 1 {
             return Err(MessageError::CreationError);
@@ -28,6 +30,7 @@ impl Message for ChokeMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Choke Message in a received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

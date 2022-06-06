@@ -9,10 +9,12 @@ pub struct UnchokeMessage {
 }
 
 impl UnchokeMessage {
+    /// Create and returns a Unchoke Message.
     pub fn new() -> UnchokeMessage {
         UnchokeMessage { _length: 1, id: 1 }
     }
 
+    /// Reads a Unchoke Message from a stream and returns the message.
     pub fn read_msg(length: u32) -> Result<UnchokeMessage, MessageError> {
         if length != 1 {
             return Err(MessageError::CreationError);
@@ -28,6 +30,7 @@ impl Message for UnchokeMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Unchoke Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

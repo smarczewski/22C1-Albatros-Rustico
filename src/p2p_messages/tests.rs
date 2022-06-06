@@ -39,16 +39,16 @@ mod tests {
         let cl_msgs = receive_msgs(&mut stream_cl, 6)?;
         tx_cl.send(cl_msgs).unwrap();
 
-        let interested_msg = InterestedMessage::new()?;
+        let interested_msg = InterestedMessage::new();
         interested_msg.send_msg(&mut stream_cl)?;
 
-        let notinterested_msg = NotInterestedMessage::new()?;
+        let notinterested_msg = NotInterestedMessage::new();
         notinterested_msg.send_msg(&mut stream_cl)?;
 
         let request_msg = RequestMessage::new(5, 0, 1024)?;
         request_msg.send_msg(&mut stream_cl)?;
 
-        let cancel_msg = CancelMessage::new(5, 0, 1024)?;
+        let cancel_msg = CancelMessage::new(5, 0, 1024);
         cancel_msg.send_msg(&mut stream_cl)?;
 
         Ok(())
@@ -63,16 +63,16 @@ mod tests {
         let bitfield_msg = BitfieldMessage::new(vec![1, 0, 2, 99])?;
         bitfield_msg.send_msg(&mut stream_sv)?;
 
-        let have_msg = HaveMessage::new(10)?;
+        let have_msg = HaveMessage::new(10);
         have_msg.send_msg(&mut stream_sv)?;
 
-        let keep_alive_msg = KeepAliveMessage::new()?;
+        let keep_alive_msg = KeepAliveMessage::new();
         keep_alive_msg.send_msg(&mut stream_sv)?;
 
-        let choke_msg = ChokeMessage::new()?;
+        let choke_msg = ChokeMessage::new();
         choke_msg.send_msg(&mut stream_sv)?;
 
-        let unchoke_msg = UnchokeMessage::new()?;
+        let unchoke_msg = UnchokeMessage::new();
         unchoke_msg.send_msg(&mut stream_sv)?;
 
         let piece_msg = PieceMessage::new(5, 0, vec![10, 16, 255])?;
@@ -111,13 +111,13 @@ mod tests {
     fn msgs_betw_client_server() {
         let (mut received_cl, mut received_sv) = setup();
 
-        let unchoke_expected = UnchokeMessage::new().expect("error message creation");
-        let choke_expected = ChokeMessage::new().expect("error message creation");
-        let keep_alive_expected = KeepAliveMessage::new().expect("error message creation");
-        let have_expected = HaveMessage::new(10).expect("error message creation");
-        let interested_expected = InterestedMessage::new().expect("error message creation");
-        let not_interested_expected = NotInterestedMessage::new().expect("error message creation");
-        let cancel_expected = CancelMessage::new(5, 0, 1024).expect("error message creation");
+        let unchoke_expected = UnchokeMessage::new();
+        let choke_expected = ChokeMessage::new();
+        let keep_alive_expected = KeepAliveMessage::new();
+        let have_expected = HaveMessage::new(10);
+        let interested_expected = InterestedMessage::new();
+        let not_interested_expected = NotInterestedMessage::new();
+        let cancel_expected = CancelMessage::new(5, 0, 1024);
         let request_expected = RequestMessage::new(5, 0, 1024).expect("error message creation");
         let piece_expected =
             PieceMessage::new(5, 0, vec![10, 16, 255]).expect("error message creation");

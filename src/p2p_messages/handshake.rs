@@ -14,6 +14,7 @@ pub struct Handshake {
 }
 
 impl Handshake {
+    /// Create and returns a Handshake.
     pub fn new(sender: &Client, pstr: &str) -> Handshake {
         let torrent_info = sender.get_torrent_info();
         Handshake {
@@ -25,6 +26,7 @@ impl Handshake {
         }
     }
 
+    /// Reads a Handshake from a stream and returns it.
     pub fn read_msg(stream: &mut dyn Read) -> Result<Handshake, MessageError> {
         let mut pstrlen = [0u8; 1];
         stream
@@ -74,6 +76,7 @@ impl Message for Handshake {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Handshake in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&[self.pstrlen])

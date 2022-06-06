@@ -8,10 +8,12 @@ pub struct NotInterestedMessage {
     id: u8,
 }
 impl NotInterestedMessage {
+    /// Create and returns a NotInterested Message.
     pub fn new() -> NotInterestedMessage {
         NotInterestedMessage { _length: 1, id: 3 }
     }
 
+    /// Reads a NotInterested Message from a stream and returns the message.
     pub fn read_msg(length: u32) -> Result<NotInterestedMessage, MessageError> {
         if length != 1 {
             return Err(MessageError::CreationError);
@@ -27,6 +29,7 @@ impl Message for NotInterestedMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a NotInterested Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

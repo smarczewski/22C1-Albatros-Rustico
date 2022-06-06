@@ -10,6 +10,7 @@ pub struct HaveMessage {
 }
 
 impl HaveMessage {
+    /// Create and returns a Have Message.
     pub fn new(piece_index: u32) -> HaveMessage {
         HaveMessage {
             _length: 5,
@@ -18,6 +19,7 @@ impl HaveMessage {
         }
     }
 
+    /// Reads a Have Message from a stream and returns the message.
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<HaveMessage, MessageError> {
         if length != 5 {
             return Err(MessageError::CreationError);
@@ -31,6 +33,7 @@ impl HaveMessage {
         Ok(HaveMessage::new(u32::from_be_bytes(buf)))
     }
 
+    /// Returns the index of the piece
     pub fn get_piece_index(&self) -> u32 {
         self.piece_index
     }
@@ -43,6 +46,7 @@ impl Message for HaveMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Have Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

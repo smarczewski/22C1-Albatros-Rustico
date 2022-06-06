@@ -12,6 +12,7 @@ pub struct RequestMessage {
 }
 
 impl RequestMessage {
+    /// Create and returns a Request Message.
     pub fn new(
         piece_index: u32,
         begin: u32,
@@ -30,6 +31,7 @@ impl RequestMessage {
         })
     }
 
+    /// Reads a Request Message from a stream and returns the message.
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<RequestMessage, MessageError> {
         if length != 13 {
             return Err(MessageError::CreationError);
@@ -63,6 +65,7 @@ impl Message for RequestMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Request Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

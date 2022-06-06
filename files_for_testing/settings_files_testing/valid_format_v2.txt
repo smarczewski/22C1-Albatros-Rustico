@@ -1,6 +1,6 @@
-download_dir_path=/home
+download_dir_path=downloaded_files
 
 abcdefghijklmn...z
-tcp_port=127.0.0.1:8080
+tcp_port=8080
 %$#"" :) :( :D
 logs_dir_path=/home

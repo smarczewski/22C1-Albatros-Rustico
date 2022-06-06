@@ -12,6 +12,7 @@ pub struct CancelMessage {
 }
 
 impl CancelMessage {
+    /// Create and returns a Cancel Message.
     pub fn new(piece_index: u32, begin: u32, block_length: u32) -> CancelMessage {
         CancelMessage {
             _length: 13,
@@ -22,6 +23,7 @@ impl CancelMessage {
         }
     }
 
+    /// Reads a Cancel Message from a stream and returns the message.
     pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<CancelMessage, MessageError> {
         if length != 13 {
             return Err(MessageError::CreationError);
@@ -55,6 +57,7 @@ impl Message for CancelMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Cancel Message in a received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

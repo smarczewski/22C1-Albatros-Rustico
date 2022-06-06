@@ -9,10 +9,12 @@ pub struct InterestedMessage {
 }
 
 impl InterestedMessage {
+    /// Create and returns a Interested Message.
     pub fn new() -> InterestedMessage {
         InterestedMessage { _length: 1, id: 2 }
     }
 
+    /// Reads a Interested Message from a stream and returns the message.
     pub fn read_msg(length: u32) -> Result<InterestedMessage, MessageError> {
         if length != 1 {
             return Err(MessageError::CreationError);
@@ -28,6 +30,7 @@ impl Message for InterestedMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a Interested Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

@@ -8,6 +8,7 @@ pub struct KeepAliveMessage {
 }
 
 impl KeepAliveMessage {
+    /// Create and returns a KeepAlive Message.
     pub fn new() -> KeepAliveMessage {
         KeepAliveMessage { _length: 0 }
     }
@@ -19,6 +20,7 @@ impl Message for KeepAliveMessage {
         println!("================================================================\n");
     }
 
+    /// Writes the bytes of a KeepAlive Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
             .write_all(&self._length.to_be_bytes())

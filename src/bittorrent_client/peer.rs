@@ -1,6 +1,8 @@
 use crate::bencode_type::BencodeType;
 use crate::errors::ClientError;
 
+/// # struct Peer
+/// Represents a peer.
 pub struct Peer {
     id: Vec<u8>,
     ip: String,
@@ -8,20 +10,20 @@ pub struct Peer {
 }
 
 impl Peer {
+    /// Receives a list of peers and gets the information of the last peer.
+    /// On success, returns a Peer.
+    /// Otherwise, returns ClientError (CannotFindAnyPeer or InvalidTrackerResponse if
+    /// the list is not valid)-
     pub fn new(peer_list: &mut Vec<BencodeType>) -> Result<Peer, ClientError> {
         let last_peer = peer_list.pop();
         if let Some(peer) = last_peer {
-            let peer_id = get_peer_id(&peer);
-            let peer_ip = get_peer_ip(&peer);
-            let peer_port = get_peer_port(&peer);
+            let id = get_peer_id(&peer)?;
+            let ip = get_peer_ip(&peer)?;
+            let port = get_peer_port(&peer)?;
 
-            if let (Ok(id), Ok(ip), Ok(port)) = (peer_id, peer_ip, peer_port) {
-                return Ok(Peer { id, ip, port });
-            }
+            return Ok(Peer { id, ip, port });
         }
-
-        Err(ClientError::InvalidTrackerResponse)
-        //Return error + handle error + print
+        Err(ClientError::CannotFindAnyPeer)
     }
 
     pub fn id(&self) -> Vec<u8> {
@@ -44,7 +46,6 @@ fn get_peer_id(peer: &BencodeType) -> Result<Vec<u8>, ClientError> {
         }
     }
     Err(ClientError::InvalidTrackerResponse)
-    // Return error+ Handle Error + print
 }
 
 fn get_peer_ip(peer: &BencodeType) -> Result<String, ClientError> {
@@ -56,7 +57,6 @@ fn get_peer_ip(peer: &BencodeType) -> Result<String, ClientError> {
         }
     }
     Err(ClientError::InvalidTrackerResponse)
-    // Return error+ Handle Error + print
 }
 
 fn get_peer_port(peer: &BencodeType) -> Result<i64, ClientError> {
@@ -65,6 +65,5 @@ fn get_peer_port(peer: &BencodeType) -> Result<i64, ClientError> {
             return Ok(value2);
         }
     }
-    // Return error+ Handle Error + print
     Err(ClientError::InvalidTrackerResponse)
 }

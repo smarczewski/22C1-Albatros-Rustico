@@ -104,8 +104,11 @@ mod tests {
 
         let mut expected_settings = HashMap::new();
         expected_settings.insert("tcp_port".to_string(), "6881".to_string());
-        expected_settings.insert("logs_dir_path".to_string(), "/home".to_string());
-        expected_settings.insert("download_dir_path".to_string(), "/home".to_string());
+        expected_settings.insert("logs_dir_path".to_string(), "log".to_string());
+        expected_settings.insert(
+            "download_dir_path".to_string(),
+            "downloaded_files".to_string(),
+        );
 
         assert_eq!(received_settings.unwrap(), expected_settings);
     }
@@ -116,9 +119,12 @@ mod tests {
             .parse_file("files_for_testing/settings_files_testing/valid_format_v1.txt");
 
         let mut expected_settings = HashMap::new();
-        expected_settings.insert("download_dir_path".to_string(), "/home".to_string());
+        expected_settings.insert(
+            "download_dir_path".to_string(),
+            "downloaded_files".to_string(),
+        );
         expected_settings.insert("tcp_port".to_string(), "6881".to_string());
-        expected_settings.insert("logs_dir_path".to_string(), "/home".to_string());
+        expected_settings.insert("logs_dir_path".to_string(), "log".to_string());
 
         assert_eq!(received_settings.unwrap(), expected_settings);
     }
