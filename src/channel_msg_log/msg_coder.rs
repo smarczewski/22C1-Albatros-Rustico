@@ -1,24 +1,19 @@
+use crate::constants::*;
 pub struct MsgCoder {}
 
 impl MsgCoder {
-    pub fn generate_new_connection_message(message: String) -> String {
-        format!("NEW|{}", message)
-    }
-    pub fn generate_download_complete_message(message: String) -> String {
-        format!("COMPLETE|{}", message)
-    }
-
-    pub fn generate_download_not_complete_message(message: String) -> String {
-        format!("INCOMPLETE|{}", message)
-    }
-    pub fn generate_file_completely_downloaded_message(message: String) -> String {
-        format!("FINISH|{}", message)
-    }
-    pub fn generate_generic_message(message: String) -> String {
-        format!("GENERIC|{}", message)
-    }
-
-    pub fn generate_kill_logging_message(message: String) -> String {
-        format!("KILL|{}", message)
+    //message type: START for signaling the start of logging
+    //end type: END for signaling the start of
+    pub fn generate_message(message_type: u8, sender_mode: u8, message: String) -> String {
+        let emiter = match sender_mode {
+            SERVER_MODE_LOG => "Server",
+            _ => "Client",
+        };
+        match message_type {
+            START_LOG_TYPE => return format!("START|{}|{}", emiter, message),
+            END_LOG_TYPE => return format!("END|{}|{}", emiter, message),
+            ERROR_LOG_TYPE => return format!("ERROR|{}|{}", emiter, message),
+            _ => return format!("INFO|{}|{}", emiter, message),
+        }
     }
 }

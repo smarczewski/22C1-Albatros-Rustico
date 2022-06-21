@@ -3,12 +3,14 @@ use c122_albatros_rustico::channel_msg_log::logger_recv_channel::LoggerRecvChann
 use c122_albatros_rustico::encoding_decoding::settings_parser::SettingsParser;
 use c122_albatros_rustico::logger::Logger;
 // use c122_albatros_rustico::server::Server;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
+//use std::sync::mpsc;
+//use std::sync::mpsc::{Receiver, Sender};
 
 use std::env;
 use std::sync::Arc;
 use std::thread;
+
+//use c122_albatros_rustico::constants::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -34,10 +36,10 @@ fn main() {
     // });
 
     let log_path = settings.get(&"logs_dir_path".to_string()).unwrap();
-    let _logger = Logger::logger_create("DEBUG", log_path).unwrap();
-    let (tx, _rx): (Sender<String>, Receiver<String>) = mpsc::channel();
-    let mut logger_rcv_cnl = LoggerRecvChannel::new(_rx, _logger);
+    let _logger = Logger::logger_create(log_path).unwrap();
+    let n_threads = 2;
 
+    let (tx, mut _logger_rcv_cnl) = LoggerRecvChannel::new(log_path, n_threads).unwrap();
     let settings_cl = settings;
     let client_thread = thread::spawn(move || {
         let client = Client::new(&settings_cl, torrent_path);
@@ -52,8 +54,8 @@ fn main() {
     });
 
     let logger_thread = thread::spawn(move || {
-        while logger_rcv_cnl.get_counter() > 0 {
-            if logger_rcv_cnl.receive().is_err() {
+        while _logger_rcv_cnl.continue_receiving() {
+            if _logger_rcv_cnl.receive().is_err() {
                 break;
             }
         }

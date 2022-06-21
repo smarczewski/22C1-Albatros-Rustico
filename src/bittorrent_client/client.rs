@@ -148,7 +148,9 @@ impl Client {
     /// Logs tracker connection
     fn log_tracker_connection(&self, tx: &Sender<String>) {
         if tx
-            .send(MsgCoder::generate_new_connection_message(
+            .send(MsgCoder::generate_message(
+                GENERIC_LOG_TYPE,
+                CLIENT_MODE_LOG,
                 "Connected to tracker successfully".to_string(),
             ))
             .is_err()
@@ -165,7 +167,11 @@ impl Client {
             peer.port()
         );
         if tx
-            .send(MsgCoder::generate_new_connection_message(msg))
+            .send(MsgCoder::generate_message(
+                GENERIC_LOG_TYPE,
+                CLIENT_MODE_LOG,
+                msg,
+            ))
             .is_err()
         {
             println!("Failed to log successful peer connection");
@@ -175,10 +181,11 @@ impl Client {
     /// Logs piece downloading.
     fn log_downloaded_piece(&self, tx: &Sender<String>, idx: u32) {
         if tx
-            .send(MsgCoder::generate_kill_logging_message(format!(
-                "Piece {} has been successfully downloaded",
-                idx
-            )))
+            .send(MsgCoder::generate_message(
+                GENERIC_LOG_TYPE,
+                CLIENT_MODE_LOG,
+                format!("Piece {} has been successfully downloaded", idx),
+            ))
             .is_err()
         {
             println!("Failed to log succesful piece downloading");
