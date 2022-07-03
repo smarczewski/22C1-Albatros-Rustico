@@ -6,22 +6,19 @@ use std::sync::mpsc::{Receiver, Sender};
 pub struct LoggerRecvChannel {
     receiver: Receiver<String>,
     logger: Logger,
-    number_of_end_connections: u8,
+    continue_receiving: bool,
 }
 
 impl LoggerRecvChannel {
     //Takes the path where the logger files are to be created.
     //Creates the communication channels and the logger
-    pub fn new(
-        file_path: &str,
-        num_end_con: u8,
-    ) -> Result<(Sender<String>, LoggerRecvChannel), String> {
+    pub fn new(file_path: &str) -> Result<(Sender<String>, LoggerRecvChannel), String> {
         if let Ok(logger) = Logger::logger_create(file_path) {
             let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
             let channel = LoggerRecvChannel {
                 receiver: rx,
                 logger,
-                number_of_end_connections: num_end_con,
+                continue_receiving: true,
             };
             Ok((tx, channel))
         } else {
@@ -30,13 +27,11 @@ impl LoggerRecvChannel {
     }
 
     pub fn continue_receiving(&mut self) -> bool {
-        self.number_of_end_connections > 0
+        self.continue_receiving
     }
 
     fn update_end_messages_received(&mut self, continue_status: bool) {
-        if !continue_status {
-            self.number_of_end_connections -= 1;
-        }
+        self.continue_receiving = continue_status;
     }
     pub fn receive(&mut self) -> Result<String, String> {
         let msg_recv = self.receiver.recv().unwrap();
@@ -68,7 +63,7 @@ mod tests {
         let srcdir = PathBuf::from("./files_for_testing");
         let src_dir = fs::canonicalize(&srcdir).unwrap();
         let abs_path = format!("{}/", src_dir.as_path().display().to_string());
-        let channel_touple = LoggerRecvChannel::new(&abs_path, 2);
+        let channel_touple = LoggerRecvChannel::new(&abs_path);
         assert!(channel_touple.is_ok());
     }
 }

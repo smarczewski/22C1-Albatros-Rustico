@@ -37,9 +37,8 @@ fn main() {
 
     let log_path = settings.get(&"logs_dir_path".to_string()).unwrap();
     let _logger = Logger::logger_create(log_path).unwrap();
-    let n_threads = 2;
 
-    let (tx, mut _logger_rcv_cnl) = LoggerRecvChannel::new(log_path, n_threads).unwrap();
+    let (tx, mut _logger_rcv_cnl) = LoggerRecvChannel::new(log_path).unwrap();
     let settings_cl = settings;
     let client_thread = thread::spawn(move || {
         let client = Client::new(&settings_cl, torrent_path);
