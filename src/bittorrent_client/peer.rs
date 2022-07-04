@@ -1,9 +1,12 @@
 use crate::bencode_type::BencodeType;
 use crate::errors::ClientError;
+use std::io::Error;
+use std::net::TcpStream;
+use std::vec;
 
 /// # struct Peer
 /// Represents a peer.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Peer {
     id: Vec<u8>,
     ip: String,
@@ -15,16 +18,15 @@ impl Peer {
     /// On success, returns a Peer.
     /// Otherwise, returns ClientError (CannotFindAnyPeer or InvalidTrackerResponse if
     /// the list is not valid)-
-    pub fn new(peer_list: &mut Vec<BencodeType>) -> Result<Peer, ClientError> {
-        let last_peer = peer_list.pop();
-        if let Some(peer) = last_peer {
-            let id = get_peer_id(&peer)?;
-            let ip = get_peer_ip(&peer)?;
-            let port = get_peer_port(&peer)?;
+    pub fn new(peer: BencodeType) -> Result<Peer, ClientError> {
+        let ip = get_peer_ip(&peer)?;
+        let port = get_peer_port(&peer)?;
+        let id = match get_peer_id(&peer) {
+            Ok(peer_id) => peer_id,
+            Err(_) => vec![0u8; 20],
+        };
 
-            return Ok(Peer { id, ip, port });
-        }
-        Err(ClientError::CannotFindAnyPeer)
+        Ok(Peer { id, ip, port })
     }
 
     pub fn id(&self) -> Vec<u8> {
@@ -37,6 +39,10 @@ impl Peer {
 
     pub fn port(&self) -> i64 {
         self.port
+    }
+
+    pub fn connect(&self) -> Result<TcpStream, Error> {
+        TcpStream::connect(format!("{}:{}", self.ip, self.port))
     }
 }
 

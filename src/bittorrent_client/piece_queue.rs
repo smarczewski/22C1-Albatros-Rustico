@@ -1,5 +1,4 @@
-use crate::bittorrent_client::torrent_info::TorrentInformation;
-use crate::errors::ClientError;
+use crate::bittorrent_client::torrent_info::TorrentInfo;
 use sha1::{Digest, Sha1};
 use std::collections::VecDeque;
 
@@ -76,7 +75,7 @@ impl Piece {
         self.rq_piece_bytes += bytes;
     }
 
-    pub fn get_data(&mut self) -> Vec<u8> {
+    pub fn get_data(&self) -> Vec<u8> {
         self.data.clone()
     }
 
@@ -87,28 +86,37 @@ impl Piece {
     pub fn empty_data(&mut self) {
         self.data = vec![];
     }
+
+    pub fn reset_info(&mut self) {
+        self.dl_piece_bytes = 0;
+        self.rq_piece_bytes = 0;
+        self.data = vec![];
+    }
 }
 
 #[derive(Debug)]
 pub struct PieceQueue {
     pending_pieces: VecDeque<Piece>,
-    pub torrent_info: TorrentInformation, // INFO QUE SIRVE A VARIOS THREADS
 }
 
 impl PieceQueue {
-    pub fn new(torrent_info: TorrentInformation) -> Result<PieceQueue, ClientError> {
+    pub fn new(torrent_info: &TorrentInfo) -> PieceQueue {
         let total_bytes = torrent_info.get_length();
         let piece_bytes = torrent_info.get_piece_length();
         let n_pieces = torrent_info.get_n_pieces();
         let mut pieces: VecDeque<Piece> = VecDeque::new();
-
         // Creamos todas las pieces excepto la ultima y las pusheamos a la queue
         for idx in 0..n_pieces - 1 {
             let piece = Piece::new(idx, piece_bytes, torrent_info.get_hash(idx));
             pieces.push_back(piece);
         }
         // Creamos la ultima piece con el tamano que corresponde y pusheamos a queue
-        let l_piece_bytes = total_bytes % piece_bytes;
+
+        let l_piece_bytes = match total_bytes % piece_bytes {
+            0 => piece_bytes,
+            piece_size => piece_size,
+        };
+
         let l_piece = Piece::new(
             n_pieces - 1,
             l_piece_bytes,
@@ -116,22 +124,26 @@ impl PieceQueue {
         );
         pieces.push_back(l_piece);
 
-        Ok(PieceQueue {
+        PieceQueue {
             pending_pieces: pieces,
-            torrent_info,
-        })
+        }
     }
 
+    //unused
     pub fn get_next_piece(&mut self) -> Option<Piece> {
         self.pending_pieces.pop_front()
     }
 
-    pub fn put_in_queue(&mut self, idx: u32, tl_piece_bytes: u32, expected_hash: Vec<u8>) {
-        let piece = Piece::new(idx, tl_piece_bytes, expected_hash);
+    pub fn push_back(&mut self, mut piece: Piece) {
+        piece.reset_info();
         self.pending_pieces.push_back(piece)
     }
 
     pub fn is_empty(&self) -> bool {
         self.pending_pieces.is_empty()
+    }
+
+    pub fn length(&self) -> usize {
+        self.pending_pieces.len()
     }
 }

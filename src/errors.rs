@@ -1,6 +1,11 @@
 use std::io::Error;
 use std::num::ParseIntError;
+use std::process::exit;
 use std::string::FromUtf8Error;
+
+pub trait ErrorMessage {
+    fn print_error(&self);
+}
 
 #[derive(Debug)]
 pub enum TypeError {
@@ -21,13 +26,24 @@ pub enum ParseError {
     StrConvertionError(FromUtf8Error),
 }
 
-impl ParseError {
-    pub fn print_error(&self) {
+#[derive(Debug)]
+pub enum ArgsError {
+    EmptySettingsPath,
+    NoSuchSettingsFile,
+    InvalidSettings,
+    NoTorrentDir,
+}
+impl ErrorMessage for ArgsError {
+    fn print_error(&self) {
         match self {
-            ParseError::EmptyFilePath => println!("ERROR: The path of the settings file is empty!"),
-            ParseError::NoSuchFile(_) => println!("ERROR: No such settings file!"),
-            ParseError::InvalidFormat => println!("ERROR: Settings file is in invalid format!"),
-            _ => (),
+            ArgsError::EmptySettingsPath => {
+                println!("ERROR: The path of the settings file is empty!")
+            }
+            ArgsError::NoSuchSettingsFile => println!("ERROR: No such settings file!"),
+            ArgsError::InvalidSettings => {
+                println!("ERROR: Settings file is in invalid format!")
+            }
+            ArgsError::NoTorrentDir => println!("ERROR: Cannot find the torrents directory!"),
         }
     }
 }
@@ -52,11 +68,32 @@ pub enum LoggerError {
     FailedToCreateError,
 }
 
+impl ErrorMessage for LoggerError {
+    fn print_error(&self) {
+        if let LoggerError::FailedToCreateError = self {
+            println!("ERROR: Cannot create logger file!")
+        }
+    }
+}
+
+pub enum DownloadError {
+    ConnectionFailed,
+    NoWantedPieces,
+    PeerHasNotThePiece,
+    PeerChokedUs,
+    InvalidPiece,
+    CannotReadPeerMessage,
+    ConnectionFinished,
+    NoPeers,
+    HandshakeError,
+}
+
 #[derive(Debug)]
 pub enum ClientError {
     EmptyTorrentPath,
     NoSuchTorrentFile(ParseError),
     TorrentInInvalidFormat(TypeError),
+    CannotFindDownloadDir,
     InvalidSettings,
     MessageReadingError(MessageError),
     TrackerConnectionError,
@@ -65,6 +102,7 @@ pub enum ClientError {
     CannotConnectToPeer,
     ProtocolError,
     StoringPieceError,
+    DownloadError,
 }
 
 impl ClientError {
@@ -86,6 +124,30 @@ impl ClientError {
                 println!("ERROR: Cannot find any peer to connect to!")
             }
             _ => (),
+        }
+    }
+}
+
+pub enum ServerError {
+    HandshakeError,
+    CannotFindTorrent,
+    CannotReadPeerMessage,
+    NoSuchDirectory,
+    PieceError,
+}
+
+pub trait HandleError<T> {
+    fn handle_error(self) -> T;
+}
+
+impl<T, E: ErrorMessage> HandleError<T> for Result<T, E> {
+    fn handle_error(self) -> T {
+        match self {
+            Ok(v) => v,
+            Err(e) => {
+                e.print_error();
+                exit(-1);
+            }
         }
     }
 }

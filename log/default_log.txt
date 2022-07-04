@@ -1,3 +1,0 @@
-[INFO]  [2022-06-06 15:41:42] Connected to tracker successfully
-[INFO]  [2022-06-06 15:41:44] Connected to peer 87.92.198.208:51413 successfully.
-[INFO]  [2022-06-06 15:43:05] Piece 0 has been successfully downloaded

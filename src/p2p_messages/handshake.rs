@@ -68,8 +68,19 @@ impl Handshake {
         })
     }
 
-    pub fn is_valid(&self, info_hash: Vec<u8>, peer_id: Vec<u8>) -> bool {
-        self.info_hash == info_hash && self.peer_id == peer_id
+    pub fn is_valid(&self, info_hash: Vec<u8>) -> bool {
+        if self.info_hash != info_hash {
+            return false;
+        }
+        true
+    }
+
+    pub fn get_peer_id(&self) -> Vec<u8> {
+        self.peer_id.clone()
+    }
+
+    pub fn get_info_hash(&self) -> Vec<u8> {
+        self.info_hash.clone()
     }
 }
 

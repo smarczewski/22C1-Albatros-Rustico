@@ -1,4 +1,5 @@
 use super::msg_decoder::MsgDecoder;
+use crate::errors::LoggerError;
 use crate::logger::Logger;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -12,18 +13,15 @@ pub struct LoggerRecvChannel {
 impl LoggerRecvChannel {
     //Takes the path where the logger files are to be created.
     //Creates the communication channels and the logger
-    pub fn new(file_path: &str) -> Result<(Sender<String>, LoggerRecvChannel), String> {
-        if let Ok(logger) = Logger::logger_create(file_path) {
-            let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
-            let channel = LoggerRecvChannel {
-                receiver: rx,
-                logger,
-                continue_receiving: true,
-            };
-            Ok((tx, channel))
-        } else {
-            Err("Failed to create logger".to_string())
-        }
+    pub fn new(file_path: &str) -> Result<(Sender<String>, LoggerRecvChannel), LoggerError> {
+        let logger = Logger::logger_create(file_path)?;
+        let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
+        let channel = LoggerRecvChannel {
+            receiver: rx,
+            logger,
+            continue_receiving: true,
+        };
+        Ok((tx, channel))
     }
 
     pub fn continue_receiving(&mut self) -> bool {
@@ -52,11 +50,8 @@ impl LoggerRecvChannel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use crate::channel_msg_log::msg_coder::MsgCoder;
     use std::fs;
     use std::path::PathBuf;
-    // use std::sync::mpsc;
-    // use std::sync::mpsc::{Receiver, Sender};
     #[test]
     fn test_channel_creates_correctly() {
         let srcdir = PathBuf::from("./files_for_testing");

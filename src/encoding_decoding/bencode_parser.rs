@@ -22,7 +22,6 @@ impl BencodeParser {
             return Err(ParseError::EmptyFilePath);
         }
         let mut file = File::open(path).map_err(ParseError::NoSuchFile)?;
-
         let mut bencoded_data = vec![];
         file.read_to_end(&mut bencoded_data)
             .map_err(ParseError::ReadingFileError)?;

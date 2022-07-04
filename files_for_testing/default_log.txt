@@ -1,0 +1,1 @@
+[INFO]  [2022-07-02 18:09:46] Mensaje de descarga completa del thread 1

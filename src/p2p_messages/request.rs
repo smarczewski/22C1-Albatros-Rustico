@@ -53,6 +53,18 @@ impl RequestMessage {
 
         RequestMessage::new(piece_index, begin, block_length)
     }
+
+    pub fn get_piece_index(&self) -> u32 {
+        self.piece_index
+    }
+
+    pub fn get_begin(&self) -> u32 {
+        self.begin
+    }
+
+    pub fn get_block_length(&self) -> u32 {
+        self.block_length
+    }
 }
 
 impl Message for RequestMessage {

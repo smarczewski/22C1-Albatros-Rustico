@@ -55,11 +55,9 @@ impl Logger {
                 let returned_logger = Logger { file, server_file };
                 return Ok(returned_logger);
             } else {
-                println!("Fallo la creacion del archivo para loggear");
                 return Err(LoggerError::FailedToCreateError);
             }
         }
-        println!("Fallo la creacion del archivo para loggear");
         Err(LoggerError::FailedToCreateError)
     }
 

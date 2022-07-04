@@ -1,13 +1,12 @@
-use crate::bencode_type::BencodeType;
 use crate::encoding_decoding::bencode_parser::BencodeParser;
 use crate::encoding_decoding::encoder::Encoder;
-use crate::errors::ClientError;
 use sha1::{Digest, Sha1};
+use std::io::{Error, ErrorKind};
 
 /// # struct TorrentInformation
 /// Contains the information of torrent file.
-#[derive(Debug)]
-pub struct TorrentInformation {
+#[derive(Debug, Clone, PartialEq)]
+pub struct TorrentInfo {
     name: String,
     announce: String,
     info_hash: Vec<u8>, // hash con el que hacemos el handshake
@@ -17,40 +16,47 @@ pub struct TorrentInformation {
     hashes_list: Vec<u8>, // hashes de cada pieza para validar
 }
 
-impl TorrentInformation {
+impl TorrentInfo {
     /// Receives a path of the torrent file, then parses it.
     /// On success, returns a TorrentInformation which contains the information
     /// of the parsed torrent file.
     /// Otherwise, returns ClientError (NoSuchTorrentFile or TorrentInInvalidFormat)
-    pub fn new(torrent_path: &str) -> Result<TorrentInformation, ClientError> {
-        let benc_torrent = BencodeParser
-            .parse_file(torrent_path)
-            .map_err(ClientError::NoSuchTorrentFile)?;
-        let announce = read_announce(&benc_torrent)?;
+    pub fn new(torrent_path: &str) -> Result<TorrentInfo, Error> {
+        if let Ok(benc_torrent) = BencodeParser.parse_file(torrent_path) {
+            let announce = String::from_utf8_lossy(
+                &benc_torrent.get_value_from_dict("announce")?.get_string()?,
+            )
+            .to_string();
+            let info_value = benc_torrent.get_value_from_dict("info")?;
+            let name =
+                String::from_utf8_lossy(&info_value.get_value_from_dict("name")?.get_string()?)
+                    .to_string();
+            let length = info_value.get_value_from_dict("length")?.get_integer()? as u32;
+            let piece_length = info_value
+                .get_value_from_dict("piece length")?
+                .get_integer()? as u32;
+            let n_pieces = (length as f32 / piece_length as f32).ceil() as u32;
+            let hashes_list = info_value.get_value_from_dict("pieces")?.get_string()?;
 
-        let info_value = benc_torrent
-            .get_value_from_dict("info")
-            .map_err(ClientError::TorrentInInvalidFormat)?;
-        let name = read_name(&info_value)?;
-        let length = read_length(&info_value)? as u32;
-        let piece_length = read_piece_length(&info_value)? as u32;
-        let n_pieces = (length as f32 / piece_length as f32).ceil() as u32;
-        let hashes_list = read_hashes_list(&info_value)?;
-
-        let benc_info_value = Encoder.bencode(&info_value);
-        let mut hasher = Sha1::new();
-        hasher.update(benc_info_value);
-        let info_hash = hasher.finalize();
-
-        Ok(TorrentInformation {
-            name,
-            announce,
-            info_hash: info_hash.to_vec(),
-            piece_length,
-            length,
-            n_pieces,
-            hashes_list,
-        })
+            let benc_info_value = Encoder.bencode(&info_value);
+            let mut hasher = Sha1::new();
+            hasher.update(benc_info_value);
+            let info_hash = hasher.finalize();
+            return Ok(TorrentInfo {
+                name,
+                announce,
+                info_hash: info_hash.to_vec(),
+                piece_length,
+                length,
+                n_pieces,
+                hashes_list,
+            });
+        }
+        println!("Cannot find or parse the torrent: {}", torrent_path);
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            "Cannot find or parse torrent file",
+        ))
     }
 
     pub fn get_name(&self) -> String {
@@ -73,6 +79,16 @@ impl TorrentInformation {
         self.piece_length
     }
 
+    pub fn length_of_piece_n(&self, piece_idx: u32) -> u32 {
+        let last_piece_len = self.length - (self.n_pieces - 1) * self.piece_length;
+
+        match piece_idx {
+            _ if piece_idx == self.n_pieces - 1 => last_piece_len,
+            _ if piece_idx < self.n_pieces - 1 => self.piece_length,
+            _ => 0,
+        }
+    }
+
     pub fn get_n_pieces(&self) -> u32 {
         self.n_pieces
     }
@@ -89,46 +105,52 @@ impl TorrentInformation {
     }
 }
 
-fn read_announce(torrent: &BencodeType) -> Result<String, ClientError> {
-    let url_aux = torrent
-        .get_value_from_dict("announce")
-        .map_err(ClientError::TorrentInInvalidFormat)?
-        .get_string()
-        .map_err(ClientError::TorrentInInvalidFormat)?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    Ok(String::from_utf8_lossy(&url_aux).to_string())
-}
+    #[test]
+    fn get_torrent_info_with_pieces() {
+        let path = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+        let torrent = TorrentInfo::new(path).unwrap();
 
-fn read_name(info_dict: &BencodeType) -> Result<String, ClientError> {
-    let name = info_dict
-        .get_value_from_dict("name")
-        .map_err(ClientError::TorrentInInvalidFormat)?
-        .get_string()
-        .map_err(ClientError::TorrentInInvalidFormat)?;
+        let exp_name = "ubuntu-20.04.4-desktop-amd64.iso".to_string();
+        let exp_announce = "https://torrent.ubuntu.com/announce".to_string();
+        let exp_infohash = vec![
+            240, 156, 141, 8, 132, 89, 0, 136, 244, 0, 78, 1, 10, 146, 143, 139, 97, 120, 194, 253,
+        ];
+        let exp_piece_length = 262144;
+        let exp_length = 3379068928;
+        let n_pieces = 12891;
 
-    Ok(String::from_utf8_lossy(&name).to_string())
-}
+        assert_eq!(torrent.get_name(), exp_name);
+        assert_eq!(torrent.get_announce(), exp_announce);
+        assert_eq!(torrent.get_info_hash(), exp_infohash);
+        assert_eq!(torrent.get_piece_length(), exp_piece_length);
+        assert_eq!(torrent.get_length(), exp_length);
+        assert_eq!(torrent.get_n_pieces(), n_pieces);
+    }
 
-fn read_length(info_dict: &BencodeType) -> Result<i64, ClientError> {
-    info_dict
-        .get_value_from_dict("length")
-        .map_err(ClientError::TorrentInInvalidFormat)?
-        .get_integer()
-        .map_err(ClientError::TorrentInInvalidFormat)
-}
+    #[test]
+    fn get_torrent_info_without_pieces() {
+        let path = "files_for_testing/torrents_tracker_request_test/lubuntu-18.04-alternate-i386.iso.torrent";
+        let torrent = TorrentInfo::new(path).unwrap();
 
-fn read_piece_length(info_dict: &BencodeType) -> Result<i64, ClientError> {
-    info_dict
-        .get_value_from_dict("piece length")
-        .map_err(ClientError::TorrentInInvalidFormat)?
-        .get_integer()
-        .map_err(ClientError::TorrentInInvalidFormat)
-}
+        let exp_name = "lubuntu-18.04-alternate-i386.iso".to_string();
+        let exp_announce = "http://torrent.ubuntu.com:6969/announce".to_string();
+        let exp_infohash = vec![
+            235, 149, 253, 102, 100, 184, 196, 72, 121, 43, 111, 77, 235, 35, 138, 248, 85, 20, 43,
+            209,
+        ];
+        let exp_piece_length = 524288;
+        let exp_length = 749731840;
+        let n_pieces = 1430;
 
-fn read_hashes_list(info_dict: &BencodeType) -> Result<Vec<u8>, ClientError> {
-    info_dict
-        .get_value_from_dict("pieces")
-        .map_err(ClientError::TorrentInInvalidFormat)?
-        .get_string()
-        .map_err(ClientError::TorrentInInvalidFormat)
+        assert_eq!(torrent.get_name(), exp_name);
+        assert_eq!(torrent.get_announce(), exp_announce);
+        assert_eq!(torrent.get_info_hash(), exp_infohash);
+        assert_eq!(torrent.get_piece_length(), exp_piece_length);
+        assert_eq!(torrent.get_length(), exp_length);
+        assert_eq!(torrent.get_n_pieces(), n_pieces);
+    }
 }
