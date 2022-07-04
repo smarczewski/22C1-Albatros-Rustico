@@ -1,3 +1,4 @@
+use super::piece_queue::PieceQueue;
 use crate::bencode_type::BencodeType;
 use crate::bittorrent_client::peer::Peer;
 use crate::bittorrent_client::torrent_info::TorrentInformation;
@@ -6,13 +7,12 @@ use crate::channel_msg_log::msg_coder::MsgCoder;
 use crate::constants::*;
 use crate::errors::*;
 use crate::peer_connection::PeerConnection;
-use std::sync::mpsc::Sender;
-
-use sha1::{Digest, Sha1};
-
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
+use std::sync::mpsc::Sender;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::thread;
+use std::thread::JoinHandle;
 
 /// # struct PeerConnection
 /// Represents the BitTorrent client.
@@ -21,6 +21,7 @@ pub struct Client {
     tcp_port: String,
     peer_id: Vec<u8>,
     torrent_info: TorrentInformation,
+    piece_queue: Arc<RwLock<PieceQueue>>,
 }
 
 impl Client {
@@ -36,13 +37,17 @@ impl Client {
 
         let download = settings.get(&"download_dir_path".to_string());
         let port = settings.get(&"tcp_port".to_string());
+        let torrent_info = TorrentInformation::new(&torrent_path)?;
+        let torrent_info_ = TorrentInformation::new(&torrent_path)?; // RE-PENSAR
+        let piece_queue = PieceQueue::new(torrent_info_)?;
 
         if let (Some(d), Some(p)) = (download, port) {
             return Ok(Client {
                 download_dir_path: d.clone(),
                 tcp_port: p.clone(),
                 peer_id: PEER_ID.as_bytes().to_vec(),
-                torrent_info: TorrentInformation::new(&torrent_path)?,
+                torrent_info,
+                piece_queue: Arc::new(RwLock::new(piece_queue)),
             });
         }
         Err(ClientError::InvalidSettings)
@@ -56,30 +61,48 @@ impl Client {
     ///     - Downloading starts.
     ///
     /// On error, the client chooses another peer and tries downloading the piece again.
-    pub fn run_client(&mut self, tx: Sender<String>) -> Result<(), ClientError> {
+    pub fn run_client(&mut self, _tx: Sender<String>) -> Result<(), ClientError> {
         let response = self.connect_to_tracker()?;
-        self.log_tracker_connection(&tx);
+        // self.log_tracker_connection(&tx);
         let mut peer_list = self.get_peer_list(&response)?;
+        let mut vec_threads: Vec<JoinHandle<()>> = vec![];
 
-        loop {
+        for _ in 0..peer_list.len() {
             let peer = Peer::new(&mut peer_list)?;
-            if let Ok(mut peer_conn) = PeerConnection::new(self, &peer) {
-                self.log_peer_connection(&tx, &peer);
-                println!("Connected to peer successfully!");
+            // clonar todo lo que pasamos por parametro
+            let info_hash = self.torrent_info.get_info_hash();
+            let hashes_list = self.torrent_info.get_hashes_list();
+            let torrent_name = self.torrent_info.get_name();
+            let peer_id = self.get_peer_id();
+            let piece_queue_clone = self.piece_queue.clone();
+            let download_dir_path = self.download_dir_path.clone();
 
-                if let Ok((idx, piece)) = peer_conn.download_piece() {
-                    if self.piece_is_valid(idx, &piece)
-                        && self.store_piece_in_file(idx, piece).is_ok()
-                    {
-                        self.log_downloaded_piece(&tx, idx);
-                        break;
+            let thread = thread::spawn(move || {
+                // We create a new peer connection
+                let peer_connection = PeerConnection::new(
+                    download_dir_path,
+                    torrent_name,
+                    hashes_list,
+                    peer,
+                    piece_queue_clone,
+                    info_hash,
+                    peer_id,
+                );
+
+                match peer_connection {
+                    Ok(mut new_peer_connection) => {
+                        if let Err(e) = new_peer_connection.start_download() {
+                            e.print_error()
+                        }
                     }
-                } else {
-                    println!("Downloaded piece is not valid");
+                    Err(error) => error.print_error(),
                 }
-            } else {
-                println!("Cannot connect to peer");
-            }
+            });
+            vec_threads.push(thread);
+        }
+
+        for t in vec_threads {
+            t.join().unwrap();
         }
         Ok(())
     }
@@ -113,40 +136,8 @@ impl Client {
         Err(ClientError::InvalidTrackerResponse)
     }
 
-    /// Checks if the downloaded piece is valid. To do this, it compares the hash of downloaded piece
-    /// with the hash of the original piece that is in the torrent file
-    fn piece_is_valid(&self, idx: u32, piece: &[u8]) -> bool {
-        //Get original hash
-        let expected_hash = self.torrent_info.get_hash(idx);
-
-        //Get hash of downloaded piece
-        let mut hasher = Sha1::new();
-        hasher.update(piece);
-        let piece_hash = hasher.finalize();
-
-        //Compare two hashes
-        expected_hash == piece_hash.to_vec()
-    }
-
-    /// Writes bytes of the downloaded piece in a file.
-    fn store_piece_in_file(&self, idx: u32, piece: Vec<u8>) -> Result<(), ClientError> {
-        let path = format!(
-            "{}/{}_piece_{}",
-            self.download_dir_path,
-            self.torrent_info.get_name(),
-            idx
-        );
-        if let Ok(mut file) = File::create(path) {
-            if file.write_all(&piece).is_ok() {
-                return Ok(());
-            }
-        }
-        println!("ERROR: Cannot store the piece in the file :(");
-        Err(ClientError::StoringPieceError)
-    }
-
     /// Logs tracker connection
-    fn log_tracker_connection(&self, tx: &Sender<String>) {
+    fn _log_tracker_connection(&self, tx: &Sender<String>) {
         if tx
             .send(MsgCoder::generate_message(
                 GENERIC_LOG_TYPE,
@@ -160,7 +151,7 @@ impl Client {
     }
 
     /// Logs peer connection.
-    fn log_peer_connection(&self, tx: &Sender<String>, peer: &Peer) {
+    fn _log_peer_connection(&self, tx: &Sender<String>, peer: &Peer) {
         let msg = format!(
             "Connected to peer {}:{} successfully.",
             peer.ip(),
@@ -179,7 +170,7 @@ impl Client {
     }
 
     /// Logs piece downloading.
-    fn log_downloaded_piece(&self, tx: &Sender<String>, idx: u32) {
+    fn _log_downloaded_piece(&self, tx: &Sender<String>, idx: u32) {
         if tx
             .send(MsgCoder::generate_message(
                 GENERIC_LOG_TYPE,

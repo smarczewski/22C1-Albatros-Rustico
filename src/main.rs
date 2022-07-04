@@ -3,8 +3,8 @@ use c122_albatros_rustico::channel_msg_log::logger_recv_channel::LoggerRecvChann
 use c122_albatros_rustico::encoding_decoding::settings_parser::SettingsParser;
 use c122_albatros_rustico::logger::Logger;
 // use c122_albatros_rustico::server::Server;
-//use std::sync::mpsc;
-//use std::sync::mpsc::{Receiver, Sender};
+// use std::sync::mpsc;
+// use std::sync::mpsc::{Receiver, Sender};
 
 use std::env;
 use std::sync::Arc;
@@ -37,8 +37,8 @@ fn main() {
 
     let log_path = settings.get(&"logs_dir_path".to_string()).unwrap();
     let _logger = Logger::logger_create(log_path).unwrap();
-
     let (tx, mut _logger_rcv_cnl) = LoggerRecvChannel::new(log_path).unwrap();
+
     let settings_cl = settings;
     let client_thread = thread::spawn(move || {
         let client = Client::new(&settings_cl, torrent_path);

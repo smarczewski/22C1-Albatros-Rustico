@@ -52,12 +52,11 @@ impl LoggerRecvChannel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::channel_msg_log::msg_coder::MsgCoder;
+    // use crate::channel_msg_log::msg_coder::MsgCoder;
     use std::fs;
     use std::path::PathBuf;
-    use std::sync::mpsc;
-    use std::sync::mpsc::{Receiver, Sender};
-    #[test]
+    // use std::sync::mpsc;
+    // use std::sync::mpsc::{Receiver, Sender};
     #[test]
     fn test_channel_creates_correctly() {
         let srcdir = PathBuf::from("./files_for_testing");

@@ -26,6 +26,16 @@ impl Handshake {
         }
     }
 
+    pub fn new_from_param(pstr: &str, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Handshake {
+        Handshake {
+            pstrlen: pstr.len() as u8,
+            pstr: pstr.as_bytes().to_vec(),
+            reserved: vec![0; 8],
+            info_hash,
+            peer_id,
+        }
+    }
+
     /// Reads a Handshake from a stream and returns it.
     pub fn read_msg(stream: &mut dyn Read) -> Result<Handshake, MessageError> {
         let mut pstrlen = [0u8; 1];

@@ -3,6 +3,7 @@ use crate::errors::ClientError;
 
 /// # struct Peer
 /// Represents a peer.
+#[derive(Debug)]
 pub struct Peer {
     id: Vec<u8>,
     ip: String,
