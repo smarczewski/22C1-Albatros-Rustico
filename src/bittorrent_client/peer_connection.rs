@@ -1,7 +1,7 @@
+use super::piece::Piece;
 use crate::bitfield::PieceBitfield;
 use crate::bittorrent_client::client::Client;
 use crate::bittorrent_client::peer::Peer;
-use crate::bittorrent_client::piece_queue::Piece;
 use crate::bittorrent_client::piece_queue::PieceQueue;
 use crate::errors::*;
 use crate::event_messages::*;
@@ -23,7 +23,7 @@ use std::thread;
 use std::time::Duration;
 use std::vec;
 
-/// # struct PeerConnection
+/// # struct PeerConnection (client)
 /// Contains all information about the connection.
 /// Fields:
 ///     - stream
@@ -62,7 +62,6 @@ impl PeerConnection {
         if let Ok(stream) = peer.connect() {
             let number_of_pieces = client.get_torrent_info().get_n_pieces();
             let bitfield = vec![0; (number_of_pieces as f32 / 8.0).ceil() as usize];
-
             if stream.set_read_timeout(Some(Duration::new(5, 0))).is_ok()
                 && tx_client
                     .send(NewEvent::NewConnection(peer.clone()))
@@ -85,7 +84,7 @@ impl PeerConnection {
 
     /// Sends a handshake to a connected peer and tries to receive it from this one.
     /// On error, returns CannotConnectToPeer
-    fn exchange_handshake(&mut self) -> Result<(), DownloadError> {
+    pub fn exchange_handshake(&mut self) -> Result<(), DownloadError> {
         let handshake = Handshake::new(&self.client, "BitTorrent protocol");
         if handshake.send_msg(&mut self.stream).is_ok() {
             if let Ok(handshake_res) = Handshake::read_msg(&mut self.stream) {
@@ -97,6 +96,13 @@ impl PeerConnection {
         Err(DownloadError::HandshakeError)
     }
 
+    /// The download starts. First there is an exchange of handshakes
+    /// If handshake fails, the download will end.
+    /// Then, it pop a piece from the piece queue. If the piece queue is not empty,
+    /// this piece will be downloaded.
+    /// If the piece queue is empty, we check:
+    ///     - Is download finished? -> if the piece is valid, we write this piece in the file
+    ///     - If the peer has not any piece that we need, the connection will be dropped.
     pub fn start_download(
         &mut self,
         bf_pieces: Arc<RwLock<PieceBitfield>>,
@@ -114,7 +120,6 @@ impl PeerConnection {
                     Err(DownloadError::InvalidPiece) => self.return_piece(piece),
 
                     Err(DownloadError::CannotReadPeerMessage) => {
-                        println!("Error leer msj");
                         return self.drop_connection(Some(piece));
                     }
                     Err(DownloadError::PeerChokedUs) => {
@@ -151,23 +156,18 @@ impl PeerConnection {
 
     fn drop_connection(&mut self, curr_piece: Option<Piece>) {
         if let Some(piece) = curr_piece {
-            println!("retorna pieza");
             self.return_piece(piece);
         }
         let _ = self.tx_client.send(NewEvent::ConnectionDropped);
     }
 
-    /// Makes the exchange of messages following the BitTorrent protocol.
+    /// Carries out the exchange of messages following the BitTorrent protocol to download a piece.
     /// Finally, on success, it returns the downloaded piece.
     /// Otherwise, it returns an error.
     ///
     /// -> Note that if the other peer chokes us, the message exchange will end, otherwise,
     /// it will continue until we download the piece or some error arises.
     pub fn download_piece(&mut self, piece: &mut Piece) -> Result<(), DownloadError> {
-        // if !self.pieces.has_piece(piece.get_idx()){
-        //     return Err(DownloadError::InvalidPiece);
-        // }
-
         while piece.get_dl() < piece.get_tl() {
             self.keep_connection_alive();
 
@@ -178,16 +178,17 @@ impl PeerConnection {
             if !self.am_choked && self.am_interested {
                 self.request_a_piece(piece);
             }
-
             self.receive_message(piece)?;
         }
-
         if piece.piece_is_valid() {
             return Ok(());
         }
         Err(DownloadError::InvalidPiece)
     }
 
+    /// Receives a message from the peer.
+    /// If the peer choked us, it returns an error because the download has to end.
+    /// Else, it handles the message.
     fn receive_message(&mut self, piece: &mut Piece) -> Result<(), DownloadError> {
         if let Ok(msg) = MessageBuilder::build(&mut self.stream) {
             if let P2PMessage::Choke(_) = msg {

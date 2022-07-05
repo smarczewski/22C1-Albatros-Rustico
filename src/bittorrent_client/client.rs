@@ -22,6 +22,13 @@ use std::thread::JoinHandle;
 
 /// # struct PeerConnection
 /// Represents the BitTorrent client.
+/// Fields:
+///     - settings
+///     - peer id
+///     - torrent -> parsed torrent file
+///     - connection_counter -> active connections
+///     - downloaded_pieces: bitfield with out pieces
+///     - tx_logger
 #[derive(Debug, Clone)]
 pub struct Client {
     settings: Arc<Settings>,
@@ -33,21 +40,21 @@ pub struct Client {
 }
 
 impl Client {
+    /// Creates and runs a client.
     pub fn init(
         settings: Arc<Settings>,
         torrent: (TorrentInfo, PieceBitfield),
-        tx_sv: Sender<NewEvent>,
         tx_logger: Sender<String>,
     ) {
         let mut client = Client::new(settings, torrent.0, torrent.1, tx_logger);
-        if let Err(error) = client.run_client(tx_sv) {
+        if let Err(error) = client.run_client() {
             error.print_error();
         }
     }
 
     /// Receives the settings and the path of the torrent file.
     /// On success, returns a client which is correctly initialized
-    pub fn new(
+    fn new(
         settings: Arc<Settings>,
         torrent: TorrentInfo,
         bitfield: PieceBitfield,
@@ -71,15 +78,24 @@ impl Client {
     ///     - Downloading starts.
     ///
     /// On error, the client chooses another peer and tries downloading the piece again.
-    pub fn run_client(&mut self, _tx: Sender<NewEvent>) -> Result<(), ClientError> {
+    pub fn run_client(&mut self) -> Result<(), ClientError> {
+        // Chequeamos que no tengamos ya todo el archivo descargado
+        let download_finished = Arc::new(RwLock::new(self.check_bf(&self.downloaded_pieces)));
+        if *download_finished.read().unwrap() {
+            let _r = self.merge_pieces();
+            return Ok(());
+        }
+
         let response = self.connect_to_tracker()?;
         let peer_list = self.get_peer_list(&response)?;
 
         let mut vec_threads: Vec<JoinHandle<()>> = vec![];
         // let client_shared = Arc::new(self.clone());
         let (tx, rx) = mpsc::channel();
-        let piece_queue = Arc::new(RwLock::new(PieceQueue::new(&self.torrent)));
-        let download_finished = Arc::new(RwLock::new(false));
+        let piece_queue = Arc::new(RwLock::new(PieceQueue::new(
+            &self.torrent,
+            &self.downloaded_pieces,
+        )));
 
         for peer in peer_list {
             let thread = self.handle_connection(
@@ -172,6 +188,8 @@ impl Client {
         }
     }
 
+    /// Receives a peer and spawns a thread. Then, it tries to connect to the peer.
+    /// On success, it starts the download.
     fn handle_connection(
         &self,
         client: Client,
@@ -192,6 +210,13 @@ impl Client {
         })
     }
 
+    /// Client listens for new events, like:
+    ///     - New pieces was downloaded
+    ///     - New connection
+    ///     - A connection was dropped
+    /// According to the event, the client do stuffs.
+    /// When the client receives all pieces of the file or the connections counter
+    /// is zero, the client stops listening for new events.
     fn listen_for_new_events(
         &mut self,
         rx: Receiver<NewEvent>,
@@ -199,7 +224,6 @@ impl Client {
     ) {
         let mut piece_counter = 0;
         loop {
-            println!("counter:{}", self.connection_counter);
             if let Ok(new_event_msg) = rx.recv() {
                 match new_event_msg {
                     NewEvent::NewConnection(peer) => {
@@ -283,6 +307,7 @@ impl Client {
         }
     }
 
+    /// Logs when the file is already downloaded.
     fn log_downloaded_file(&self) {
         if self
             .tx_logger
@@ -325,23 +350,62 @@ impl Client {
     pub fn get_port(&self) -> String {
         self.settings.get_tcp_port()
     }
+
+    fn check_bf(&self, bitfield: &Arc<RwLock<PieceBitfield>>) -> bool {
+        bitfield.read().unwrap().has_all_pieces()
+    }
 }
 
+// Testing:
+//  - Client creation
+//  - Request to tracker
+//  - Get peer list
+//  - Get one peer and connect to it
+//  - Download a valid piece
+
+// (Lo dejamos comentado porque a veces tarda tiempo en establecer conexión con un peer)
+/*
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use crate::encoding_decoding::settings_parser::SettingsParser;
+    use std::sync::mpsc::channel;
+    use crate::bittorrent_client::piece_queue::Piece;
+    use crate::{torrent_finder::TorrentFinder, settings::Settings, bittorrent_client::{peer, peer_connection}};
 
-    // #[test]
-    // fn client_is_created_correctly() {
-    //     let settings = SettingsParser
-    //         .parse_file("files_for_testing/settings_files_testing/valid_format_v2.txt")
-    //         .unwrap();
-    //     let client = Client::new(
-    //         &settings,
-    //         "files_for_testing/torrents_tracker_request/ubuntu-20.04.4-desktop-amd64.iso.torrent"
-    //             .to_string(),
-    //     );
-    //     assert!(client.is_ok());
-    // }
+    use super::*;
+
+    #[test]
+    fn integration_test_download_piece() {
+        let torrent_path = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+        let settings = Arc::new(Settings::new("files_for_testing/settings_files_testing/settings.txt").handle_error());
+        let (tx_logger,rx) = channel();
+
+        if let Ok(vec) = TorrentFinder::find(torrent_path, "files_for_testing/downloaded_files2"){
+            let mut piece = Piece::new(0, vec[0].0.get_piece_length(), vec[0].0.get_hash(0));
+            let  piece_queue = Arc::new(RwLock::new(PieceQueue::new(&vec[0].0)));
+            let mut client = Client::new(settings, vec[0].0.clone(), vec[0].1.clone(), tx_logger);
+            let (tx_peer_conn_to_client, rx) = channel();
+
+            if let Ok(response) = client.connect_to_tracker(){
+                if let Ok(mut peer_list) = client.get_peer_list(&response){
+
+                    loop{
+                        if let Some(new_peer) = peer_list.pop(){
+                            let peer_conn = PeerConnection::new(client.clone(), new_peer, piece_queue.clone(), Sender::clone(&tx_peer_conn_to_client));
+                            if let Ok(mut peer_connection) = peer_conn{
+                                    if peer_connection.exchange_handshake().is_ok(){
+                                        peer_connection.download_piece(&mut piece);
+                                        break;
+                                    }
+                            }
+                        }
+                    }
+                    assert!(piece.piece_is_valid());
+                    return;
+                }
+
+            }
+        }
+        assert!(false);
+    }
 }
+*/

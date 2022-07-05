@@ -2,11 +2,16 @@ use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::Path;
 pub struct PieceMerger;
 
 impl PieceMerger {
     pub fn merge_pieces(filename: &str, dl_dir: &str, num_pieces: u32) -> Result<(), String> {
         let merged_file_path = format!("{}/{}", dl_dir, filename);
+        if Path::new(&merged_file_path).exists() {
+            return Ok(());
+        }
+
         if File::create(&merged_file_path).is_ok() {
             if let Ok(mut open_merged_file) =
                 OpenOptions::new().append(true).open(&merged_file_path)

@@ -72,7 +72,7 @@ impl ErrorMessage for LoggerError {
     fn print_error(&self) {
         if let LoggerError::FailedToCreateError = self {
             println!("ERROR: Cannot create logger file!")
-        }
+        };
     }
 }
 

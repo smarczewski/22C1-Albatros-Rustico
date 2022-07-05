@@ -1,4 +1,5 @@
 use c122_albatros_rustico::bittorrent_client::client::Client;
+use c122_albatros_rustico::bittorrent_server::server::Server;
 use c122_albatros_rustico::channel_msg_log::logger_recv_channel::LoggerRecvChannel;
 use c122_albatros_rustico::constants::MAX_CONCURRENT_TORRENTS;
 use c122_albatros_rustico::errors::HandleError;
@@ -6,13 +7,11 @@ use c122_albatros_rustico::settings::Settings;
 use c122_albatros_rustico::torrent_finder::TorrentFinder;
 // use c122_albatros_rustico::server::Server;
 use std::sync::mpsc::Sender;
-use std::sync::{mpsc, Mutex};
+use std::sync::Mutex;
 
 use std::env;
 use std::sync::Arc;
 use std::thread;
-
-//use c122_albatros_rustico::constants::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -23,17 +22,24 @@ fn main() {
     let settings = Arc::new(Settings::new(&args[2]).handle_error());
     let torrents =
         TorrentFinder::find(&args[1].clone(), &settings.get_downloads_dir()).handle_error();
-    let sh_torrents = Arc::new(Mutex::new(torrents));
-    let (tx_cl_to_sv, _rx_sv) = mpsc::channel();
+    // let (tx_cl_to_sv, rx_sv) = mpsc::channel();
     // let (tx_cl_to_gui, rx_gui) = mpsc::channel();
 
     let (tx_logger, mut logger) = LoggerRecvChannel::new(&settings.get_log_dir()).handle_error();
 
+    // Server execution
+    let settings_sv = settings.clone();
+    let tx_logger_sv = Sender::clone(&tx_logger);
+    let torrents_sv = torrents.clone();
+    let sv_thread = thread::spawn(move || {
+        Server::init(settings_sv, tx_logger_sv, torrents_sv);
+    });
+
     // Client execution
+    let sh_torrents = Arc::new(Mutex::new(torrents));
     let mut cl_threads = vec![];
-    for _ in 0..MAX_CONCURRENT_TORRENTS {
-        let tx_logger_cl = Sender::clone(&tx_logger);
-        let sh_tx_cl_to_sv = Sender::clone(&tx_cl_to_sv);
+    for _i in 0..MAX_CONCURRENT_TORRENTS {
+        let sh_tx_logger = Sender::clone(&tx_logger);
         let sh_torrents_i = sh_torrents.clone();
         let settings_i = settings.clone();
         let client_thread = thread::spawn(move || loop {
@@ -44,8 +50,7 @@ fn main() {
                     Client::init(
                         settings_i.clone(),
                         curr_torrent,
-                        Sender::clone(&sh_tx_cl_to_sv),
-                        Sender::clone(&tx_logger_cl),
+                        Sender::clone(&sh_tx_logger),
                     )
                 }
                 _ => break,
@@ -66,7 +71,7 @@ fn main() {
         thread.join().unwrap();
     }
     logger_thread.join().unwrap();
-    // server_thread.join().unwrap();
+    sv_thread.join().unwrap();
 }
 
 /*

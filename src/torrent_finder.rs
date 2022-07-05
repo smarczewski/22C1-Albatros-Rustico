@@ -5,6 +5,9 @@ use crate::errors::ArgsError;
 use std::fs::{self, read_dir};
 use std::path::Path;
 
+/// # struct TorrentFinder
+/// It finds all .torrent files in a directory, parses them and builds
+/// a bitfield (per torrent) with the downloaded pieces.
 pub struct TorrentFinder;
 
 impl TorrentFinder {
