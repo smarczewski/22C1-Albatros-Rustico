@@ -229,66 +229,78 @@ mod tests {
 
     #[test]
     fn reading_integer() {
-        let integer_parsed =
-            BencodeParser.parse_file("files_for_testing/bencoded_files_testing/integer.txt");
-        let expected_value = BencodeType::Integer(12345);
-        assert_eq!(integer_parsed.unwrap(), expected_value);
+        let path = "files_for_testing/bencoded_files_testing/integer.txt";
+        if let Ok(integer_parsed) = BencodeParser.parse_file(path) {
+            let expected_value = BencodeType::Integer(12345);
+            assert_eq!(integer_parsed, expected_value);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
     fn reading_string() {
-        let integer_parsed =
-            BencodeParser.parse_file("files_for_testing/bencoded_files_testing/string.txt");
-        let expected_value = BencodeType::String("hello bittorrent".as_bytes().to_vec());
-        assert_eq!(integer_parsed.unwrap(), expected_value);
+        let path = "files_for_testing/bencoded_files_testing/string.txt";
+        if let Ok(integer_parsed) = BencodeParser.parse_file(path) {
+            let expected_value = BencodeType::String("hello bittorrent".as_bytes().to_vec());
+            assert_eq!(integer_parsed, expected_value);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
     fn reading_list() {
-        let integer_parsed =
-            BencodeParser.parse_file("files_for_testing/bencoded_files_testing/list.txt");
-        let list = vec![
-            BencodeType::Integer(1),
-            BencodeType::Integer(2),
-            BencodeType::Integer(3),
-        ];
-        let expected_value = BencodeType::List(list);
-        assert_eq!(integer_parsed.unwrap(), expected_value);
+        let path = "files_for_testing/bencoded_files_testing/list.txt";
+        if let Ok(integer_parsed) = BencodeParser.parse_file(path) {
+            let list = vec![
+                BencodeType::Integer(1),
+                BencodeType::Integer(2),
+                BencodeType::Integer(3),
+            ];
+            let expected_value = BencodeType::List(list);
+            assert_eq!(integer_parsed, expected_value);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
     fn reading_dictionary() {
-        let integer_parsed =
-            BencodeParser.parse_file("files_for_testing/bencoded_files_testing/dictionary.txt");
-        let mut dic = HashMap::new();
-        dic.insert(
-            "announce".to_string(),
-            BencodeType::String("https://torrent.ubuntu.com/announce".as_bytes().to_vec()),
-        );
-        dic.insert(
-            "created by".to_string(),
-            BencodeType::String("mktorrent 1.1".as_bytes().to_vec()),
-        );
-        dic.insert(
-            "creation date".to_string(),
-            BencodeType::Integer(1645734650),
-        );
+        let path = "files_for_testing/bencoded_files_testing/dictionary.txt";
+        if let Ok(integer_parsed) = BencodeParser.parse_file(path) {
+            let mut dic = HashMap::new();
+            dic.insert(
+                "announce".to_string(),
+                BencodeType::String("https://torrent.ubuntu.com/announce".as_bytes().to_vec()),
+            );
+            dic.insert(
+                "created by".to_string(),
+                BencodeType::String("mktorrent 1.1".as_bytes().to_vec()),
+            );
+            dic.insert(
+                "creation date".to_string(),
+                BencodeType::Integer(1645734650),
+            );
 
-        let mut info = HashMap::new();
-        info.insert("length".to_string(), BencodeType::Integer(3379068928));
-        info.insert(
-            "name".to_string(),
-            BencodeType::String("ubuntu-20.04.4-desktop-amd64.iso".as_bytes().to_vec()),
-        );
-        info.insert("piece length".to_string(), BencodeType::Integer(262144));
-        info.insert(
-            "pieces".to_string(),
-            BencodeType::String("xyz".as_bytes().to_vec()),
-        );
+            let mut info = HashMap::new();
+            info.insert("length".to_string(), BencodeType::Integer(3379068928));
+            info.insert(
+                "name".to_string(),
+                BencodeType::String("ubuntu-20.04.4-desktop-amd64.iso".as_bytes().to_vec()),
+            );
+            info.insert("piece length".to_string(), BencodeType::Integer(262144));
+            info.insert(
+                "pieces".to_string(),
+                BencodeType::String("xyz".as_bytes().to_vec()),
+            );
 
-        dic.insert("info".to_string(), BencodeType::Dictionary(info));
+            dic.insert("info".to_string(), BencodeType::Dictionary(info));
 
-        let expected_value = BencodeType::Dictionary(dic);
-        assert_eq!(integer_parsed.unwrap(), expected_value);
+            let expected_value = BencodeType::Dictionary(dic);
+            assert_eq!(integer_parsed, expected_value);
+        } else {
+            assert!(false);
+        }
     }
 }

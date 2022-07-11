@@ -4,16 +4,22 @@ use sha1::{Digest, Sha1};
 use std::io::{Error, ErrorKind};
 
 /// # struct TorrentInformation
-/// Contains the information of torrent file.
+/// Contains the information of torrent file:
+///     - name -> name of the torrent
+///     - announce -> announce field (tracker url)
+///     - info_hash
+///     - piece_length
+///     - n_pieces -> number of pieces
+///     - hashes_list -> list of piece hashes
 #[derive(Debug, Clone, PartialEq)]
 pub struct TorrentInfo {
     name: String,
     announce: String,
-    info_hash: Vec<u8>, // hash con el que hacemos el handshake
+    info_hash: Vec<u8>,
     piece_length: u32,
     length: u32,
     n_pieces: u32,
-    hashes_list: Vec<u8>, // hashes de cada pieza para validar
+    hashes_list: Vec<u8>,
 }
 
 impl TorrentInfo {
@@ -23,14 +29,9 @@ impl TorrentInfo {
     /// Otherwise, returns ClientError (NoSuchTorrentFile or TorrentInInvalidFormat)
     pub fn new(torrent_path: &str) -> Result<TorrentInfo, Error> {
         if let Ok(benc_torrent) = BencodeParser.parse_file(torrent_path) {
-            let announce = String::from_utf8_lossy(
-                &benc_torrent.get_value_from_dict("announce")?.get_string()?,
-            )
-            .to_string();
+            let announce_aux = &benc_torrent.get_value_from_dict("announce")?.get_string()?;
             let info_value = benc_torrent.get_value_from_dict("info")?;
-            let name =
-                String::from_utf8_lossy(&info_value.get_value_from_dict("name")?.get_string()?)
-                    .to_string();
+            let name_aux = &info_value.get_value_from_dict("name")?.get_string()?;
             let length = info_value.get_value_from_dict("length")?.get_integer()? as u32;
             let piece_length = info_value
                 .get_value_from_dict("piece length")?
@@ -43,8 +44,8 @@ impl TorrentInfo {
             hasher.update(benc_info_value);
             let info_hash = hasher.finalize();
             return Ok(TorrentInfo {
-                name,
-                announce,
+                name: String::from_utf8_lossy(name_aux).to_string(),
+                announce: String::from_utf8_lossy(announce_aux).to_string(),
                 info_hash: info_hash.to_vec(),
                 piece_length,
                 length,
@@ -53,10 +54,7 @@ impl TorrentInfo {
             });
         }
         println!("Cannot find or parse the torrent: {}", torrent_path);
-        Err(Error::new(
-            ErrorKind::InvalidData,
-            "Cannot find or parse torrent file",
-        ))
+        Err(Error::new(ErrorKind::InvalidData, "Cannot parse torrent"))
     }
 
     pub fn get_name(&self) -> String {
@@ -99,10 +97,6 @@ impl TorrentInfo {
         let (hash, _) = vec.split_at(20_usize);
         hash.to_vec()
     }
-
-    pub fn get_hashes_list(&self) -> Vec<u8> {
-        self.hashes_list.clone()
-    }
 }
 
 #[cfg(test)]
@@ -112,45 +106,50 @@ mod tests {
     #[test]
     fn get_torrent_info_with_pieces() {
         let path = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-        let torrent = TorrentInfo::new(path).unwrap();
+        if let Ok(torrent) = TorrentInfo::new(path) {
+            let exp_name = "ubuntu-20.04.4-desktop-amd64.iso".to_string();
+            let exp_announce = "https://torrent.ubuntu.com/announce".to_string();
+            let exp_infohash = vec![
+                240, 156, 141, 8, 132, 89, 0, 136, 244, 0, 78, 1, 10, 146, 143, 139, 97, 120, 194,
+                253,
+            ];
+            let exp_piece_length = 262144;
+            let exp_length = 3379068928;
+            let n_pieces = 12891;
 
-        let exp_name = "ubuntu-20.04.4-desktop-amd64.iso".to_string();
-        let exp_announce = "https://torrent.ubuntu.com/announce".to_string();
-        let exp_infohash = vec![
-            240, 156, 141, 8, 132, 89, 0, 136, 244, 0, 78, 1, 10, 146, 143, 139, 97, 120, 194, 253,
-        ];
-        let exp_piece_length = 262144;
-        let exp_length = 3379068928;
-        let n_pieces = 12891;
-
-        assert_eq!(torrent.get_name(), exp_name);
-        assert_eq!(torrent.get_announce(), exp_announce);
-        assert_eq!(torrent.get_info_hash(), exp_infohash);
-        assert_eq!(torrent.get_piece_length(), exp_piece_length);
-        assert_eq!(torrent.get_length(), exp_length);
-        assert_eq!(torrent.get_n_pieces(), n_pieces);
+            assert_eq!(torrent.get_name(), exp_name);
+            assert_eq!(torrent.get_announce(), exp_announce);
+            assert_eq!(torrent.get_info_hash(), exp_infohash);
+            assert_eq!(torrent.get_piece_length(), exp_piece_length);
+            assert_eq!(torrent.get_length(), exp_length);
+            assert_eq!(torrent.get_n_pieces(), n_pieces);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
     fn get_torrent_info_without_pieces() {
         let path = "files_for_testing/torrents_tracker_request_test/lubuntu-18.04-alternate-i386.iso.torrent";
-        let torrent = TorrentInfo::new(path).unwrap();
+        if let Ok(torrent) = TorrentInfo::new(path) {
+            let exp_name = "lubuntu-18.04-alternate-i386.iso".to_string();
+            let exp_announce = "http://torrent.ubuntu.com:6969/announce".to_string();
+            let exp_infohash = vec![
+                235, 149, 253, 102, 100, 184, 196, 72, 121, 43, 111, 77, 235, 35, 138, 248, 85, 20,
+                43, 209,
+            ];
+            let exp_piece_length = 524288;
+            let exp_length = 749731840;
+            let n_pieces = 1430;
 
-        let exp_name = "lubuntu-18.04-alternate-i386.iso".to_string();
-        let exp_announce = "http://torrent.ubuntu.com:6969/announce".to_string();
-        let exp_infohash = vec![
-            235, 149, 253, 102, 100, 184, 196, 72, 121, 43, 111, 77, 235, 35, 138, 248, 85, 20, 43,
-            209,
-        ];
-        let exp_piece_length = 524288;
-        let exp_length = 749731840;
-        let n_pieces = 1430;
-
-        assert_eq!(torrent.get_name(), exp_name);
-        assert_eq!(torrent.get_announce(), exp_announce);
-        assert_eq!(torrent.get_info_hash(), exp_infohash);
-        assert_eq!(torrent.get_piece_length(), exp_piece_length);
-        assert_eq!(torrent.get_length(), exp_length);
-        assert_eq!(torrent.get_n_pieces(), n_pieces);
+            assert_eq!(torrent.get_name(), exp_name);
+            assert_eq!(torrent.get_announce(), exp_announce);
+            assert_eq!(torrent.get_info_hash(), exp_infohash);
+            assert_eq!(torrent.get_piece_length(), exp_piece_length);
+            assert_eq!(torrent.get_length(), exp_length);
+            assert_eq!(torrent.get_n_pieces(), n_pieces);
+        } else {
+            assert!(false);
+        }
     }
 }

@@ -1,17 +1,19 @@
+use c122_albatros_rustico::bitfield::PieceBitfield;
 use c122_albatros_rustico::bittorrent_client::client::Client;
 use c122_albatros_rustico::bittorrent_server::server::Server;
-use c122_albatros_rustico::channel_msg_log::logger_recv_channel::LoggerRecvChannel;
 use c122_albatros_rustico::constants::MAX_CONCURRENT_TORRENTS;
 use c122_albatros_rustico::errors::HandleError;
+use c122_albatros_rustico::logging::logger_recv_channel::LoggerRecvChannel;
 use c122_albatros_rustico::settings::Settings;
 use c122_albatros_rustico::torrent_finder::TorrentFinder;
-// use c122_albatros_rustico::server::Server;
-use std::sync::mpsc::Sender;
-use std::sync::Mutex;
-
+use c122_albatros_rustico::torrent_info::TorrentInfo;
 use std::env;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::RwLock;
 use std::thread;
+use std::thread::JoinHandle;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -22,20 +24,47 @@ fn main() {
     let settings = Arc::new(Settings::new(&args[2]).handle_error());
     let torrents =
         TorrentFinder::find(&args[1].clone(), &settings.get_downloads_dir()).handle_error();
-    // let (tx_cl_to_sv, rx_sv) = mpsc::channel();
-    // let (tx_cl_to_gui, rx_gui) = mpsc::channel();
-
     let (tx_logger, mut logger) = LoggerRecvChannel::new(&settings.get_log_dir()).handle_error();
 
-    // Server execution
-    let settings_sv = settings.clone();
-    let tx_logger_sv = Sender::clone(&tx_logger);
-    let torrents_sv = torrents.clone();
-    let sv_thread = thread::spawn(move || {
-        Server::init(settings_sv, tx_logger_sv, torrents_sv);
+    server_execution(
+        settings.clone(),
+        Sender::clone(&tx_logger),
+        torrents.clone(),
+    );
+
+    let cl_threads = client_execution(settings, Sender::clone(&tx_logger), torrents);
+
+    let logger_thread = thread::spawn(move || {
+        while logger.continue_receiving() {
+            if logger.receive().is_err() {
+                break;
+            }
+        }
     });
 
-    // Client execution
+    for thread in cl_threads {
+        thread.join().unwrap();
+    }
+    logger_thread.join().unwrap();
+}
+
+fn server_execution(
+    settings: Arc<Settings>,
+    tx_logger: Sender<String>,
+    torrents: Vec<(TorrentInfo, Arc<RwLock<PieceBitfield>>)>,
+) {
+    let settings_sv = settings;
+    let tx_logger_sv = Sender::clone(&tx_logger);
+    thread::spawn(move || {
+        Server::init(settings_sv, tx_logger_sv, torrents);
+    });
+}
+
+fn client_execution(
+    settings: Arc<Settings>,
+    tx_logger: Sender<String>,
+    torrents: Vec<(TorrentInfo, Arc<RwLock<PieceBitfield>>)>,
+) -> Vec<JoinHandle<()>> {
     let sh_torrents = Arc::new(Mutex::new(torrents));
     let mut cl_threads = vec![];
     for _i in 0..MAX_CONCURRENT_TORRENTS {
@@ -58,44 +87,5 @@ fn main() {
         });
         cl_threads.push(client_thread);
     }
-
-    let logger_thread = thread::spawn(move || {
-        while logger.continue_receiving() {
-            if logger.receive().is_err() {
-                break;
-            }
-        }
-    });
-
-    for thread in cl_threads {
-        thread.join().unwrap();
-    }
-    logger_thread.join().unwrap();
-    sv_thread.join().unwrap();
+    cl_threads
 }
-
-/*
-   // for i in 0..3{
-   //     thread = thread::spawn({
-   //          loop{
-   //             match torrents.lock.pop()
-   //                 Some    cliente = crear_cliente
-   //                         run cliente
-
-   //                 Err break;
-
-   //         }
-   //     })
-   // }
-*/
-
-// let settings_sv = settings.clone();
-// let server_thread = thread::spawn(move || {
-//     let server = Server::new(&settings_sv).unwrap();
-//     server.run_server().unwrap();
-// });
-
-// let log_path = settings.get(&"logs_dir_path".to_string()).unwrap();
-// let _logger = Logger::logger_create("DEBUG", &settings.get_log_dir()).unwrap();
-// let (tx, _rx): (Sender<String>, Receiver<String>) = mpsc::channel();
-// let mut _logger_rcv_cnl = LoggerRecvChannel::new(_rx, _logger);

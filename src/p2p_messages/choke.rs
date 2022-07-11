@@ -3,33 +3,28 @@ use crate::p2p_messages::message_trait::Message;
 use std::io::Write;
 
 #[derive(Debug, PartialEq)]
-pub struct ChokeMessage {
+pub struct ChokeMsg {
     _length: u32,
     id: u8,
 }
 
-impl ChokeMessage {
+impl ChokeMsg {
     /// Create and returns a Choke Message.
-    pub fn new() -> ChokeMessage {
-        ChokeMessage { _length: 1, id: 0 }
+    pub fn new() -> ChokeMsg {
+        ChokeMsg { _length: 1, id: 0 }
     }
 
     /// Reads a Choke Message from a stream and returns the message.
-    pub fn read_msg(length: u32) -> Result<ChokeMessage, MessageError> {
+    pub fn read_msg(length: u32) -> Result<ChokeMsg, MessageError> {
         if length != 1 {
             return Err(MessageError::CreationError);
         }
 
-        Ok(ChokeMessage::new())
+        Ok(ChokeMsg::new())
     }
 }
 
-impl Message for ChokeMessage {
-    fn print_msg(&self) {
-        println!("Type: Choke!\n ID: {}\n", self.id);
-        println!("================================================================\n");
-    }
-
+impl Message for ChokeMsg {
     /// Writes the bytes of a Choke Message in a received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
@@ -38,13 +33,13 @@ impl Message for ChokeMessage {
         stream
             .write_all(&self.id.to_be_bytes())
             .map_err(MessageError::SendingError)?;
-        stream.flush().unwrap();
+        let _ = stream.flush();
 
         Ok(())
     }
 }
 
-impl Default for ChokeMessage {
+impl Default for ChokeMsg {
     fn default() -> Self {
         Self::new()
     }

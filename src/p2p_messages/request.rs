@@ -3,7 +3,7 @@ use crate::p2p_messages::message_trait::Message;
 use std::io::{Read, Write};
 
 #[derive(Debug, PartialEq)]
-pub struct RequestMessage {
+pub struct RequestMsg {
     _length: u32,
     id: u8,
     piece_index: u32,
@@ -11,18 +11,18 @@ pub struct RequestMessage {
     block_length: u32,
 }
 
-impl RequestMessage {
+impl RequestMsg {
     /// Create and returns a Request Message.
     pub fn new(
         piece_index: u32,
         begin: u32,
         block_length: u32,
-    ) -> Result<RequestMessage, MessageError> {
+    ) -> Result<RequestMsg, MessageError> {
         if block_length == 0 {
             return Err(MessageError::CreationError);
         }
 
-        Ok(RequestMessage {
+        Ok(RequestMsg {
             _length: 13,
             id: 6,
             piece_index,
@@ -32,7 +32,7 @@ impl RequestMessage {
     }
 
     /// Reads a Request Message from a stream and returns the message.
-    pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<RequestMessage, MessageError> {
+    pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<RequestMsg, MessageError> {
         if length != 13 {
             return Err(MessageError::CreationError);
         }
@@ -51,7 +51,7 @@ impl RequestMessage {
             .map_err(MessageError::ReadingError)?;
         let block_length = u32::from_be_bytes(buf);
 
-        RequestMessage::new(piece_index, begin, block_length)
+        RequestMsg::new(piece_index, begin, block_length)
     }
 
     pub fn get_piece_index(&self) -> u32 {
@@ -67,16 +67,7 @@ impl RequestMessage {
     }
 }
 
-impl Message for RequestMessage {
-    fn print_msg(&self) {
-        println!("Type: Request!\n ID: {}\n", self.id);
-        println!(
-            "Piece index: {}, begin: {}, block_length: {}\n",
-            self.piece_index, self.begin, self.block_length
-        );
-        println!("================================================================\n");
-    }
-
+impl Message for RequestMsg {
     /// Writes the bytes of a Request Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
@@ -94,7 +85,7 @@ impl Message for RequestMessage {
         stream
             .write_all(&self.block_length.to_be_bytes())
             .map_err(MessageError::SendingError)?;
-        stream.flush().unwrap();
+        let _ = stream.flush();
 
         Ok(())
     }

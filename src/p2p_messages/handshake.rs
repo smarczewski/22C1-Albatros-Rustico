@@ -85,18 +85,6 @@ impl Handshake {
 }
 
 impl Message for Handshake {
-    fn print_msg(&self) {
-        println!("Type: Handshake!\n",);
-        println!(
-            "pstr: {} {:?} {} {}\n",
-            std::string::String::from_utf8_lossy(&self.pstr),
-            self.reserved,
-            std::string::String::from_utf8_lossy(&self.info_hash),
-            std::string::String::from_utf8_lossy(&self.peer_id)
-        );
-        println!("================================================================\n");
-    }
-
     /// Writes the bytes of a Handshake in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
@@ -115,7 +103,7 @@ impl Message for Handshake {
             .write_all(&self.peer_id)
             .map_err(MessageError::SendingError)?;
 
-        stream.flush().unwrap();
+        let _ = stream.flush();
 
         Ok(())
     }

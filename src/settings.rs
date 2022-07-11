@@ -135,27 +135,33 @@ mod tests {
 
     #[test]
     fn file_valid_format_v1() {
-        let received_settings =
-            Settings::new("files_for_testing/settings_files_testing/valid_format_v1.txt").unwrap();
-        let l = received_settings.get_log_dir();
-        let p = received_settings.get_tcp_port();
-        let d = received_settings.get_downloads_dir();
+        let path = "files_for_testing/settings_files_testing/valid_format_v1.txt";
+        if let Ok(received_settings) = Settings::new(path) {
+            let l = received_settings.get_log_dir();
+            let p = received_settings.get_tcp_port();
+            let d = received_settings.get_downloads_dir();
 
-        assert_eq!(l, "log");
-        assert_eq!(p, "8080");
-        assert_eq!(d, "downloaded_files");
+            assert_eq!(l, "log");
+            assert_eq!(p, "8080");
+            assert_eq!(d, "downloaded_files");
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
     fn file_valid_format_v2() {
-        let received_settings =
-            Settings::new("files_for_testing/settings_files_testing/valid_format_v2.txt").unwrap();
-        let l = received_settings.get_log_dir();
-        let p = received_settings.get_tcp_port();
-        let d = received_settings.get_downloads_dir();
+        let path = "files_for_testing/settings_files_testing/valid_format_v2.txt";
+        if let Ok(received_settings) = Settings::new(path) {
+            let l = received_settings.get_log_dir();
+            let p = received_settings.get_tcp_port();
+            let d = received_settings.get_downloads_dir();
 
-        assert_eq!(l, "/home");
-        assert_eq!(p, "8080");
-        assert_eq!(d, "downloaded_files");
+            assert_eq!(l, "/home");
+            assert_eq!(p, "8080");
+            assert_eq!(d, "downloaded_files");
+        } else {
+            assert!(false);
+        }
     }
 }

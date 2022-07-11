@@ -1,20 +1,23 @@
 use std::fs::DirEntry;
 use std::io::Seek;
 use std::net::TcpStream;
+use std::sync::mpsc::Sender;
 
 use crate::bitfield::PieceBitfield;
-use crate::bittorrent_client::piece::Piece;
-use crate::bittorrent_client::torrent_info::TorrentInfo;
 use crate::constants::*;
+use crate::encoding_decoding::encoder::Encoder;
 use crate::errors::ServerError;
-use crate::p2p_messages::bitfield::BitfieldMessage;
+use crate::logging::msg_coder::MsgCoder;
+use crate::p2p_messages::bitfield::BitfieldMsg;
 use crate::p2p_messages::handshake::Handshake;
 use crate::p2p_messages::message_builder::MessageBuilder;
 use crate::p2p_messages::message_builder::P2PMessage;
 use crate::p2p_messages::message_trait::Message;
-use crate::p2p_messages::piece::PieceMessage;
-use crate::p2p_messages::request::RequestMessage;
-use crate::p2p_messages::unchoke::UnchokeMessage;
+use crate::p2p_messages::piece::PieceMsg;
+use crate::p2p_messages::request::RequestMsg;
+use crate::p2p_messages::unchoke::UnchokeMsg;
+use crate::piece::Piece;
+use crate::torrent_info::TorrentInfo;
 
 use std::fs;
 use std::fs::File;
@@ -23,31 +26,39 @@ use std::io::SeekFrom;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-pub struct PeerConnection {
-    stream: TcpStream,
-    is_choked: u8,
-    is_interested: u8,
-    our_pieces: PieceBitfield,
-    torrent_info: TorrentInfo,
-    download_path: String,
-    piece: Option<Piece>,
-}
-
 /// # struct PeerConnection (server)
 /// Contains all information about the connection.
 /// Fields:
-//      - stream
-//      - is_choked -> peer is choked
-//      - is_interested -> peer is interested
-//      - our_pieces -> PieceBitfield of our pieces
-//      - torrent_info -> torrent that peer is interested in
-//      - download_path
-//      - piece -> piece requested by the peer.
+///     - stream
+///     - peer_id
+///     - is_choked -> peer is choked
+///     - is_interested -> peer is interested
+///     - our_pieces -> PieceBitfield of our pieces
+///     - torrent_info -> torrent that peer is interested in
+///     - download_path
+///     - piece -> piece requested by the peer.
+///     - tx_logger
+pub struct PeerConnection {
+    stream: TcpStream,
+    peer_id: Vec<u8>,
+    is_choked: u8,
+    is_interested: u8,
+    our_pieces: Arc<RwLock<PieceBitfield>>,
+    torrent_info: TorrentInfo,
+    download_path: String,
+    piece: Option<Piece>,
+    tx_logger: Sender<String>,
+}
+
 impl PeerConnection {
+    /// Receives a handshake, then sends a handshake to the peer.
+    /// Also, it initializes the peer connection using the information
+    /// of the torrent the peer requested.
     pub fn new(
         mut stream: TcpStream,
-        torrents: Arc<RwLock<Vec<(TorrentInfo, PieceBitfield)>>>,
+        torrents: Vec<(TorrentInfo, Arc<RwLock<PieceBitfield>>)>,
         download_path: String,
+        tx_logger: Sender<String>,
     ) -> Result<PeerConnection, ServerError> {
         if let Ok(handshake) = Handshake::read_msg(&mut stream) {
             if stream
@@ -55,18 +66,23 @@ impl PeerConnection {
                 .is_ok()
             {
                 let info_hash = handshake.get_info_hash();
+                let peer_id = handshake.get_peer_id();
                 let (torrent_info, our_pieces) = get_torrent_info(&info_hash, torrents)?;
                 PeerConnection::send_handshake(info_hash, &mut stream)?;
 
-                return Ok(PeerConnection {
+                let peer_conn = PeerConnection {
                     stream,
+                    peer_id,
                     is_choked: CHOKED,
                     is_interested: NOT_INTERESTED,
                     our_pieces,
                     torrent_info,
                     download_path,
                     piece: None,
-                });
+                    tx_logger,
+                };
+                peer_conn.announce_new_connection();
+                return Ok(peer_conn);
             }
         }
         Err(ServerError::HandshakeError)
@@ -76,7 +92,7 @@ impl PeerConnection {
         let our_handshake = Handshake::new_from_param(
             "BitTorrent protocol",
             info_hash,
-            PEER_ID.as_bytes().to_vec(),
+            CLIENT_ID.as_bytes().to_vec(),
         );
         match our_handshake.send_msg(stream) {
             Ok(_) => Ok(()),
@@ -87,8 +103,10 @@ impl PeerConnection {
     /// Sends the Bitfield message as the first message, then it listening for new messages
     /// When a new message from the other peer arrives, it is handled.
     pub fn handle_connection(&mut self) {
-        if let Ok(bf_msg) = BitfieldMessage::new(self.our_pieces.get_vec()) {
-            let _ = bf_msg.send_msg(&mut self.stream);
+        if let Ok(pieces) = self.our_pieces.read() {
+            if let Ok(bf_msg) = BitfieldMsg::new(pieces.get_vec()) {
+                let _ = bf_msg.send_msg(&mut self.stream);
+            }
         }
 
         while let Ok(msg) = MessageBuilder::build(&mut self.stream) {
@@ -108,18 +126,20 @@ impl PeerConnection {
 
     fn handle_interested_msg(&mut self) {
         self.is_interested = INTERESTED;
-        if UnchokeMessage::new().send_msg(&mut self.stream).is_ok() {
+        if UnchokeMsg::new().send_msg(&mut self.stream).is_ok() {
             self.is_choked = UNCHOKED;
         }
     }
 
-    /// Receives a Request Message, loads the piece in self.piece and then
-    /// gets the correct block of bytes from this piece.
-    fn handle_request(&mut self, msg: RequestMessage) {
+    /// Receives a Request Message, loads the piece in self.piece
+    /// and then gets the correct block of bytes from this piece.
+    /// The whole piece is loaded because the peer probably keeps requesting blocks
+    /// of the same piece, so by doing this we avoid reading the same piece many times.
+    fn handle_request(&mut self, msg: RequestMsg) {
         let piece_idx = msg.get_piece_index();
         if self.is_interested == NOT_INTERESTED
             || self.is_choked == CHOKED
-            || !self.our_pieces.has_piece(piece_idx)
+            || !self.have_the_piece(piece_idx)
         {
             return;
         }
@@ -139,15 +159,23 @@ impl PeerConnection {
         }
 
         let block = self.get_block(msg.get_begin(), msg.get_block_length());
-        if let Ok(msg) = PieceMessage::new(piece_idx, msg.get_begin(), block) {
-            if msg.send_msg(&mut self.stream).is_ok() {}
+        if let Ok(msg) = PieceMsg::new(piece_idx, msg.get_begin(), block) {
+            if msg.send_msg(&mut self.stream).is_ok() {
+                self.announce_piece_served(msg);
+            }
         }
+    }
+
+    fn have_the_piece(&self, piece_idx: u32) -> bool {
+        if let Ok(pieces) = self.our_pieces.read() {
+            return pieces.has_piece(piece_idx);
+        }
+        false
     }
 
     fn load_piece(&self, piece_idx: u32) -> Result<Option<Piece>, ServerError> {
         if let Ok(files) = fs::read_dir(&self.download_path) {
-            for file in files {
-                let file = file.unwrap();
+            for file in files.flatten() {
                 let file_name = file.file_name().to_string_lossy().to_string();
                 let piece_name = format!("{}_piece_{}", self.torrent_info.get_name(), piece_idx);
 
@@ -172,9 +200,10 @@ impl PeerConnection {
         if let Ok(mut piece_file) = File::open(file.path()) {
             let mut piece = Piece::new(idx, 0, vec![0u8; 20]);
             let mut buffer = Vec::new();
-            piece_file.read_to_end(&mut buffer).unwrap();
-            piece.add_block(buffer);
-            return Ok(Some(piece));
+            if piece_file.read_to_end(&mut buffer).is_ok() {
+                piece.add_block(buffer);
+                return Ok(Some(piece));
+            }
         }
         Err(ServerError::NoSuchDirectory)
     }
@@ -184,10 +213,11 @@ impl PeerConnection {
             let pos = idx * self.torrent_info.get_piece_length();
             if downloaded_file.seek(SeekFrom::Start(pos as u64)).is_ok() {
                 let mut buffer = vec![0u8; self.torrent_info.length_of_piece_n(idx) as usize];
-                downloaded_file.read_exact(&mut buffer).unwrap();
-                let mut piece = Piece::new(idx, 0, vec![0u8; 20]);
-                piece.add_block(buffer);
-                return Ok(Some(piece));
+                if downloaded_file.read_exact(&mut buffer).is_ok() {
+                    let mut piece = Piece::new(idx, 0, vec![0u8; 20]);
+                    piece.add_block(buffer);
+                    return Ok(Some(piece));
+                }
             }
         }
         Err(ServerError::NoSuchDirectory)
@@ -203,17 +233,58 @@ impl PeerConnection {
         }
         block
     }
+
+    fn announce_new_connection(&self) {
+        if self
+            .tx_logger
+            .send(MsgCoder::generate_message(
+                START_LOG_TYPE,
+                SERVER_MODE_LOG,
+                format!(
+                    "Torrent: {} - Peer: {} connect to us\n",
+                    self.torrent_info.get_name(),
+                    Encoder.urlencode(&self.peer_id)
+                ),
+            ))
+            .is_err()
+        {
+            println!("Failed to log new connection");
+        }
+    }
+
+    fn announce_piece_served(&self, msg: PieceMsg) {
+        let piece_idx = msg.get_piece_index();
+        let begin = msg.get_begin();
+        let block = msg.get_block().len();
+
+        if self
+            .tx_logger
+            .send(MsgCoder::generate_message(
+                GENERIC_LOG_TYPE,
+                SERVER_MODE_LOG,
+                format!(
+                    "Torrent: {} - Serving piece: {}, begin: {} and block len: {} to {}\n",
+                    self.torrent_info.get_name(),
+                    piece_idx,
+                    begin,
+                    block,
+                    Encoder.urlencode(&self.peer_id)
+                ),
+            ))
+            .is_err()
+        {
+            println!("Failed to log new connection");
+        }
+    }
 }
 
 fn get_torrent_info(
-    info_hash: &[u8],
-    torrents: Arc<RwLock<Vec<(TorrentInfo, PieceBitfield)>>>,
-) -> Result<(TorrentInfo, PieceBitfield), ServerError> {
-    if let Ok(vec_torrents) = torrents.read() {
-        for torrent in &*vec_torrents {
-            if torrent.0.get_info_hash() == *info_hash {
-                return Ok((torrent.0.clone(), torrent.1.clone()));
-            }
+    info_hash: &Vec<u8>,
+    torrents: Vec<(TorrentInfo, Arc<RwLock<PieceBitfield>>)>,
+) -> Result<(TorrentInfo, Arc<RwLock<PieceBitfield>>), ServerError> {
+    for torrent in torrents {
+        if torrent.0.get_info_hash() == *info_hash {
+            return Ok((torrent.0, torrent.1));
         }
     }
     Err(ServerError::CannotFindTorrent)
@@ -222,7 +293,7 @@ fn get_torrent_info(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bittorrent_client::torrent_info::TorrentInfo;
+    use crate::torrent_info::TorrentInfo;
     use sha1::{Digest, Sha1};
 
     fn load_piece_for_unit_test(piece_idx: u32) -> Result<Option<Piece>, ServerError> {
@@ -231,8 +302,7 @@ mod tests {
         let length = 262144;
 
         if let Ok(files) = fs::read_dir(download_dir) {
-            for file in files {
-                let file = file.unwrap();
+            for file in files.flatten() {
                 let file_name = file.file_name().to_string_lossy().to_string();
                 let piece_name = format!("{}_piece_{}", torrent_name, piece_idx);
 
@@ -254,9 +324,10 @@ mod tests {
         if let Ok(mut piece_file) = File::open(file.path()) {
             let mut piece = Piece::new(idx, 0, vec![0u8; 20]);
             let mut buffer = Vec::new();
-            piece_file.read_to_end(&mut buffer).unwrap();
-            piece.add_block(buffer);
-            return Ok(Some(piece));
+            if piece_file.read_to_end(&mut buffer).is_ok() {
+                piece.add_block(buffer);
+                return Ok(Some(piece));
+            }
         }
         Err(ServerError::NoSuchDirectory)
     }
@@ -270,10 +341,11 @@ mod tests {
             let pos = idx * length;
             if downloaded_file.seek(SeekFrom::Start(pos as u64)).is_ok() {
                 let mut buffer = vec![0u8; length as usize];
-                downloaded_file.read_exact(&mut buffer).unwrap();
-                let mut piece = Piece::new(idx, 0, vec![0u8; 20]);
-                piece.add_block(buffer);
-                return Ok(Some(piece));
+                if downloaded_file.read_exact(&mut buffer).is_ok() {
+                    let mut piece = Piece::new(idx, 0, vec![0u8; 20]);
+                    piece.add_block(buffer);
+                    return Ok(Some(piece));
+                }
             }
         }
         Err(ServerError::NoSuchDirectory)

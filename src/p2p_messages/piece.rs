@@ -3,7 +3,7 @@ use crate::p2p_messages::message_trait::Message;
 use std::io::{Read, Write};
 
 #[derive(Debug, PartialEq)]
-pub struct PieceMessage {
+pub struct PieceMsg {
     _length: u32,
     id: u8,
     piece_index: u32,
@@ -11,14 +11,14 @@ pub struct PieceMessage {
     block: Vec<u8>,
 }
 
-impl PieceMessage {
+impl PieceMsg {
     /// Create and returns a Piece Message.
-    pub fn new(piece_index: u32, begin: u32, block: Vec<u8>) -> Result<PieceMessage, MessageError> {
+    pub fn new(piece_index: u32, begin: u32, block: Vec<u8>) -> Result<PieceMsg, MessageError> {
         if block.is_empty() {
             return Err(MessageError::CreationError);
         }
 
-        Ok(PieceMessage {
+        Ok(PieceMsg {
             _length: (9 + block.len()) as u32,
             id: 7,
             piece_index,
@@ -28,7 +28,7 @@ impl PieceMessage {
     }
 
     /// Reads a Piece Message from a stream and returns the message.
-    pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<PieceMessage, MessageError> {
+    pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<PieceMsg, MessageError> {
         let mut buf = [0u8; 4];
         stream
             .read_exact(&mut buf)
@@ -45,7 +45,7 @@ impl PieceMessage {
             .read_exact(&mut block)
             .map_err(MessageError::ReadingError)?;
 
-        PieceMessage::new(piece_index, begin, block)
+        PieceMsg::new(piece_index, begin, block)
     }
 
     pub fn get_piece_index(&self) -> u32 {
@@ -61,16 +61,7 @@ impl PieceMessage {
     }
 }
 
-impl Message for PieceMessage {
-    fn print_msg(&self) {
-        println!("Type: Piece!\n ID: {}\n", self.id);
-        println!(
-            "Piece_index: {} , begin: {}, block: {:?}\n",
-            self.piece_index, self.begin, self.block
-        );
-        println!("================================================================\n");
-    }
-
+impl Message for PieceMsg {
     /// Writes the bytes of a Piece Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
@@ -88,7 +79,7 @@ impl Message for PieceMessage {
         stream
             .write_all(&self.block)
             .map_err(MessageError::SendingError)?;
-        stream.flush().unwrap();
+        let _ = stream.flush();
 
         Ok(())
     }

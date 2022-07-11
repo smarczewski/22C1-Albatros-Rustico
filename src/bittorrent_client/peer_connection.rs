@@ -1,4 +1,3 @@
-use super::piece::Piece;
 use crate::bitfield::PieceBitfield;
 use crate::bittorrent_client::client::Client;
 use crate::bittorrent_client::peer::Peer;
@@ -6,13 +5,14 @@ use crate::bittorrent_client::piece_queue::PieceQueue;
 use crate::errors::*;
 use crate::event_messages::*;
 use crate::p2p_messages::handshake::Handshake;
-use crate::p2p_messages::interested::InterestedMessage;
-use crate::p2p_messages::keep_alive::KeepAliveMessage;
+use crate::p2p_messages::interested::InterestedMsg;
+use crate::p2p_messages::keep_alive::KeepAliveMsg;
 use crate::p2p_messages::message_builder::MessageBuilder;
 use crate::p2p_messages::message_builder::P2PMessage;
 use crate::p2p_messages::message_trait::Message;
-use crate::p2p_messages::piece::PieceMessage;
-use crate::p2p_messages::request::RequestMessage;
+use crate::p2p_messages::piece::PieceMsg;
+use crate::p2p_messages::request::RequestMsg;
+use crate::piece::Piece;
 
 use std::fs::{self, File};
 use std::io::Write;
@@ -51,7 +51,8 @@ pub struct PeerConnection {
 }
 
 impl PeerConnection {
-    /// Receives a client and a peer. Returns an initialized Peer connection
+    /// Receives a client and a peer.
+    /// It connects to the peer and returns an initialized Peer connection
     /// In case the connection fails, returns error (CannotConnectToPeer)
     pub fn new(
         client: Client,
@@ -98,16 +99,13 @@ impl PeerConnection {
 
     /// The download starts. First there is an exchange of handshakes
     /// If handshake fails, the download will end.
-    /// Then, it pop a piece from the piece queue. If the piece queue is not empty,
+    /// Then, it pops a piece from the piece queue. If the piece queue is not empty,
     /// this piece will be downloaded.
     /// If the piece queue is empty, we check:
-    ///     - Is download finished? -> if the piece is valid, we write this piece in the file
+    ///     - If the download finished, the connection will be dropped
     ///     - If the peer has not any piece that we need, the connection will be dropped.
-    pub fn start_download(
-        &mut self,
-        bf_pieces: Arc<RwLock<PieceBitfield>>,
-        dl_finished: Arc<RwLock<bool>>,
-    ) {
+    ///     - Otherwise, calls yield_now() and then, starts another loop iteration
+    pub fn start_download(&mut self, bf_pieces: Arc<RwLock<PieceBitfield>>) {
         if self.exchange_handshake().is_err() {
             return self.drop_connection(None);
         }
@@ -128,7 +126,7 @@ impl PeerConnection {
                     _ => (),
                 }
                 continue;
-            } else if *dl_finished.read().unwrap() || !self.has_any_wanted_piece(&bf_pieces) {
+            } else if self.download_finished(&bf_pieces) || !self.has_any_wanted_piece(&bf_pieces) {
                 return self.drop_connection(None);
             } else {
                 thread::yield_now();
@@ -136,9 +134,19 @@ impl PeerConnection {
         }
     }
 
+    fn download_finished(&self, dl_pieces: &Arc<RwLock<PieceBitfield>>) -> bool {
+        if let Ok(lock_dl) = dl_pieces.read() {
+            return lock_dl.has_all_pieces();
+        }
+        false
+    }
+
     fn has_any_wanted_piece(&self, dl_pieces: &Arc<RwLock<PieceBitfield>>) -> bool {
-        let wanted_pieces = dl_pieces.read().unwrap().get_complement();
-        self.pieces.there_is_match(&wanted_pieces)
+        if let Ok(lock_dl) = dl_pieces.read() {
+            let wanted_pieces = lock_dl.get_complement();
+            return self.pieces.there_is_match(&wanted_pieces);
+        }
+        false
     }
 
     fn handle_new_piece(&mut self, mut piece: Piece) {
@@ -218,7 +226,7 @@ impl PeerConnection {
 
     /// Sets status as NOT_DOWNLOADING (0), the checks if the received block is valid.
     /// Finally, updates the value of the downloaded byte and appends the received block to self.piece
-    fn handle_piece_msg(&mut self, msg: PieceMessage, piece: &mut Piece) {
+    fn handle_piece_msg(&mut self, msg: PieceMsg, piece: &mut Piece) {
         if (msg.get_begin() == piece.get_dl()) && (msg.get_piece_index() == piece.get_idx()) {
             let block = msg.get_block();
             piece.add_to_dl(block.len() as u32);
@@ -263,7 +271,7 @@ impl PeerConnection {
 
     /// Sends a KeepAlive message
     fn keep_connection_alive(&mut self) {
-        let keep_alive_msg = KeepAliveMessage::new();
+        let keep_alive_msg = KeepAliveMsg::new();
         let _ = self.send_message(keep_alive_msg);
     }
 
@@ -274,7 +282,7 @@ impl PeerConnection {
             let begin = piece.get_rq();
             let block_length = piece.next_block_length();
 
-            if let Ok(request_msg) = RequestMessage::new(piece.get_idx(), begin, block_length) {
+            if let Ok(request_msg) = RequestMsg::new(piece.get_idx(), begin, block_length) {
                 if request_msg.send_msg(&mut self.stream).is_ok() {
                     piece.add_to_rq(block_length);
                 }
@@ -284,14 +292,12 @@ impl PeerConnection {
 
     /// Sends Interested message and sets am_interested = INTERESTED (1)
     fn interested_in_piece(&mut self) {
-        let interested_msg = InterestedMessage::new();
+        let interested_msg = InterestedMsg::new();
         if self.send_message(interested_msg).is_ok() {
             self.am_interested = true;
         }
     }
 
-    // Pedir lock y pedir pieza a la queue, sacar del option y devolver true si habia pieza
-    // false si no
     fn fetch_piece(&mut self) -> Result<Piece, ()> {
         if let Ok(mut pq_lock) = self.piece_queue.write() {
             if let Some(option_piece) = pq_lock.get_next_piece() {
@@ -304,7 +310,9 @@ impl PeerConnection {
 
     fn return_piece(&mut self, mut piece: Piece) {
         piece.reset_info();
-        let mut pq_lock = self.piece_queue.write().unwrap();
-        pq_lock.push_back(piece);
+
+        if let Ok(mut pq_lock) = self.piece_queue.write() {
+            pq_lock.push_back(piece);
+        }
     }
 }

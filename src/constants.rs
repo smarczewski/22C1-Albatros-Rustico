@@ -1,5 +1,5 @@
 pub const TRACKER_PORT: &str = "443";
-pub const PEER_ID: &str = "-AR1234-111111111111";
+pub const CLIENT_ID: &str = "-AR1234-111111111111";
 pub const BYTE_FILLED_W_ONES: u8 = 255;
 pub const TWO_MINUTES: u64 = 120;
 

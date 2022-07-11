@@ -26,9 +26,9 @@ pub struct TrackerRequest {
 }
 
 impl TrackerRequest {
-    // Creates a new request from a decoded torrent file and a client.
-    // On success, returns the request.
-    //Otherwise, returns error.
+    /// Creates a new request from a decoded torrent file and a client.
+    /// On success, returns the request.
+    /// Otherwise, returns error.
     pub fn new(client: &Client) -> TrackerRequest {
         let torrent_info = client.get_torrent_info();
 
@@ -45,6 +45,7 @@ impl TrackerRequest {
     }
 
     /// Sends the http request to the tracker.
+    /// If the tracker url starts with "https", we use TlsStream, otherwise we use TcpStream.
     /// On success, returns the tracker response (decoded).
     /// Otherwise, returns error
     pub fn make_request(&self) -> Result<BencodeType, RequestError> {
@@ -58,6 +59,7 @@ impl TrackerRequest {
         }
     }
 
+    /// Connects to tracker whose url starts with "https"
     fn connect_to_https_tracker(
         &self,
         domain: &str,
@@ -73,6 +75,7 @@ impl TrackerRequest {
         Err(RequestError::CannotConnectToTracker)
     }
 
+    /// Connects to tracker whose url does not start with "https"
     fn connect_to_nonhttps_tracker(
         &self,
         domain: &str,
@@ -127,37 +130,162 @@ impl TrackerRequest {
         format!("GET {} HTTP/1.1\r\nHost: {}\r\n\r\n", params, domain)
     }
 
-    fn get_response(&self, response_aux: Vec<u8>) -> Result<BencodeType, RequestError> {
+    fn get_response(&self, response: Vec<u8>) -> Result<BencodeType, RequestError> {
         // We need to skip the first lines because the response contains
         // information that we don't need (Request code, Date, etc.)
-        let mut last_byte_1: u8 = response_aux[0];
-        let mut last_byte_2: u8 = response_aux[1];
-        let mut last_byte_3: u8 = response_aux[2];
+        let mut three_last_bytes = (response[0], response[1], response[0]);
         let mut idx = 3;
 
         // We want to split the vector at the begin of response.
         // So, we have to detect the next combination of bytes -> '\r','\n','\r','\n'
-        while response_aux[idx] != (b'\n')
-            || last_byte_1 != (b'\r')
-            || last_byte_2 != (b'\n')
-            || last_byte_3 != (b'\r')
+        while response[idx] != (b'\n')
+            || three_last_bytes.0 != (b'\r')
+            || three_last_bytes.1 != (b'\n')
+            || three_last_bytes.2 != (b'\r')
         {
-            if idx >= response_aux.len() {
+            if idx >= response.len() {
                 return Err(RequestError::CannotGetResponse);
             }
-            last_byte_1 = last_byte_2;
-            last_byte_2 = last_byte_3;
-            last_byte_3 = response_aux[idx];
+            three_last_bytes.0 = three_last_bytes.1;
+            three_last_bytes.1 = three_last_bytes.2;
+            three_last_bytes.2 = response[idx];
             idx += 1;
         }
         idx += 1;
 
-        let (_, response) = response_aux.split_at(idx);
+        let (_, response_split) = response.split_at(idx);
         // Then, we have to parse the response
-        let parsed_res = BencodeParser.parse_vec(response);
+        let parsed_res = BencodeParser.parse_vec(response_split);
         match parsed_res {
             Ok(r) => Ok(r),
             Err(_) => Err(RequestError::CannotGetResponse),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bitfield::PieceBitfield;
+    use crate::errors::ClientError;
+    use crate::settings::Settings;
+    use crate::torrent_info::TorrentInfo;
+    use std::sync::{mpsc::channel, Arc, RwLock};
+
+    fn urldecode(data: &str) -> Vec<u8> {
+        let mut decoded_data = Vec::<u8>::new();
+        let chars: Vec<char> = data.chars().collect();
+        let mut i = 0;
+        while i < chars.len() {
+            if chars[i] == '%' {
+                let mut x = String::new();
+                x.push(chars[i + 1]);
+                x.push(chars[i + 2]);
+                i += 2;
+                decoded_data.push(u8::from_str_radix(&x, 16).unwrap());
+            } else {
+                decoded_data.push(chars[i] as u8);
+            }
+            i += 1;
+        }
+        decoded_data
+    }
+
+    fn create_client(path: &str) -> Result<Client, ClientError> {
+        let settings_path = "files_for_testing/settings_files_testing/valid_format_v1.txt";
+        let settings = Settings::new(settings_path);
+        let torrent = TorrentInfo::new(path);
+        if let (Ok(s), Ok(t)) = (settings, torrent) {
+            let dl_pieces = Arc::new(RwLock::new(PieceBitfield::new(t.get_n_pieces())));
+            let (tx, _rx) = channel();
+            let client = Client::new(Arc::new(s), t, dl_pieces, tx);
+
+            return Ok(client);
+        }
+        Err(ClientError::InvalidSettings)
+    }
+
+    #[test]
+    fn check_request_creation() {
+        let torrent_path =
+            "files_for_testing/torrents_tracker_request_test/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+        if let Ok(client) = create_client(&torrent_path) {
+            let request = TrackerRequest::new(&client);
+
+            let expected_req = TrackerRequest {
+                url: "https://torrent.ubuntu.com/announce".to_string(),
+                info_hash: urldecode("%F0%9C%8D%08%84Y%00%88%F4%00N%01%0A%92%8F%8Bax%C2%FD"),
+                peer_id: CLIENT_ID.as_bytes().to_vec(),
+                port: "8080".to_string(),
+                uploaded: 0,
+                downloaded: 0,
+                left: 3379068928,
+                event: "started".to_string(),
+            };
+
+            assert_eq!(request, expected_req);
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn send_request() {
+        let torrent_path =
+            "files_for_testing/torrents_tracker_request_test/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+        if let Ok(client) = create_client(&torrent_path) {
+            let request = TrackerRequest::new(&client);
+            if let Ok(response) = request.make_request() {
+                let x1 = response.get_value_from_dict("interval");
+                let x2 = response.get_value_from_dict("complete");
+                let x3 = response.get_value_from_dict("incomplete");
+                let x4 = response.get_value_from_dict("peers");
+
+                match (x1, x2, x3, x4) {
+                    (
+                        Ok(BencodeType::Integer(_)),
+                        Ok(BencodeType::Integer(_)),
+                        Ok(BencodeType::Integer(_)),
+                        Ok(BencodeType::List(_)),
+                    ) => assert!(true),
+                    _ => assert!(false),
+                }
+                return;
+            }
+        }
+        assert!(false);
+    }
+
+    #[test]
+    fn error_send_request_invalid_url() {
+        let torrent_path = "files_for_testing/torrents_tracker_request_test/invalid_url.torrent";
+        if let Ok(client) = create_client(&torrent_path) {
+            let request = TrackerRequest::new(&client);
+            let response = request.make_request();
+
+            match response {
+                Err(RequestError::CannotConnectToTracker) => assert!(true),
+                _ => assert!(false),
+            }
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn error_send_request_invalid_info() {
+        let torrent_path = "files_for_testing/torrents_tracker_request_test/invalid_info.torrent";
+        if let Ok(client) = create_client(&torrent_path) {
+            let request = TrackerRequest::new(&client);
+            if let Ok(response) = request.make_request() {
+                let x = response.get_value_from_dict("failure reason");
+                match x {
+                    Ok(_) => assert!(true),
+                    _ => assert!(false),
+                }
+                return;
+            }
+        }
+        assert!(false);
     }
 }

@@ -1,11 +1,9 @@
 use crate::errors::LoggerError;
-//use crate::logger::log_level::LogLevel;
 use chrono::DateTime;
 use chrono::Local;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
-//use std::io::{BufRead}; required for running commented log test
 
 #[derive(Debug)]
 pub struct Logger {

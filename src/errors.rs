@@ -103,6 +103,7 @@ pub enum ClientError {
     ProtocolError,
     StoringPieceError,
     DownloadError,
+    JoiningThreadsError,
 }
 
 impl ClientError {
@@ -122,6 +123,9 @@ impl ClientError {
             }
             ClientError::CannotFindAnyPeer => {
                 println!("ERROR: Cannot find any peer to connect to!")
+            }
+            ClientError::JoiningThreadsError => {
+                println!("ERROR: Cannot join all connection threads successfully")
             }
             _ => (),
         }

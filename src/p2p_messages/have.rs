@@ -3,16 +3,16 @@ use crate::p2p_messages::message_trait::Message;
 use std::io::{Read, Write};
 
 #[derive(Debug, PartialEq)]
-pub struct HaveMessage {
+pub struct HaveMsg {
     _length: u32,
     id: u8,
     piece_index: u32,
 }
 
-impl HaveMessage {
+impl HaveMsg {
     /// Create and returns a Have Message.
-    pub fn new(piece_index: u32) -> HaveMessage {
-        HaveMessage {
+    pub fn new(piece_index: u32) -> HaveMsg {
+        HaveMsg {
             _length: 5,
             id: 4,
             piece_index,
@@ -20,7 +20,7 @@ impl HaveMessage {
     }
 
     /// Reads a Have Message from a stream and returns the message.
-    pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<HaveMessage, MessageError> {
+    pub fn read_msg(length: u32, stream: &mut dyn Read) -> Result<HaveMsg, MessageError> {
         if length != 5 {
             return Err(MessageError::CreationError);
         }
@@ -30,7 +30,7 @@ impl HaveMessage {
             .read_exact(&mut buf)
             .map_err(MessageError::ReadingError)?;
 
-        Ok(HaveMessage::new(u32::from_be_bytes(buf)))
+        Ok(HaveMsg::new(u32::from_be_bytes(buf)))
     }
 
     /// Returns the index of the piece
@@ -39,13 +39,7 @@ impl HaveMessage {
     }
 }
 
-impl Message for HaveMessage {
-    fn print_msg(&self) {
-        println!("Type: Have!\n ID: {}\n", self.id);
-        println!("Piece index: {}\n", self.piece_index);
-        println!("================================================================\n");
-    }
-
+impl Message for HaveMsg {
     /// Writes the bytes of a Have Message in the received stream.
     fn send_msg(&self, stream: &mut dyn Write) -> Result<(), MessageError> {
         stream
@@ -57,7 +51,7 @@ impl Message for HaveMessage {
         stream
             .write_all(&self.piece_index.to_be_bytes())
             .map_err(MessageError::SendingError)?;
-        stream.flush().unwrap();
+        let _ = stream.flush();
 
         Ok(())
     }
