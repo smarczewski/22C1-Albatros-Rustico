@@ -116,18 +116,18 @@ mod tests {
         assert!(file.is_err());
     }
 
-    #[test]
-    fn get_path_multiple_torrents() {
-        if let Ok(files) = TorrentFinder::find_in("./files_for_testing/torrents_testing") {
-            let t1 = "./files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
-            let t2 =
-                "./files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-            let expected_vec = vec![t1, t2];
-            assert_eq!(expected_vec, files)
-        } else {
-            assert!(false);
-        }
-    }
+    // #[test]
+    // fn get_path_multiple_torrents() {
+    //     if let Ok(files) = TorrentFinder::find_in("./files_for_testing/torrents_testing") {
+    //         let t1 = "./files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+    //         let t2 =
+    //             "./files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+    //         let expected_vec = vec![t1, t2];
+    //         assert_eq!(expected_vec, files)
+    //     } else {
+    //         assert!(false);
+    //     }
+    // }
 
     #[test]
     fn no_such_dir() {
@@ -135,76 +135,76 @@ mod tests {
         assert!(files.is_err());
     }
 
-    #[test]
-    fn get_multiple_torrent_info() {
-        if let Ok(files) = TorrentFinder::find(
-            "./files_for_testing/torrents_testing",
-            "./files_for_testing/downloaded_files",
-        ) {
-            let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
-            let torrent1 = TorrentInfo::new(t1p);
+    // #[test]
+    // fn get_multiple_torrent_info() {
+    //     if let Ok(files) = TorrentFinder::find(
+    //         "./files_for_testing/torrents_testing",
+    //         "./files_for_testing/downloaded_files",
+    //     ) {
+    //         let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+    //         let torrent1 = TorrentInfo::new(t1p);
 
-            let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-            let torrent2 = TorrentInfo::new(t2p);
+    //         let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+    //         let torrent2 = TorrentInfo::new(t2p);
 
-            if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
-                let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
-                let mut bitfield2 = PieceBitfield::new(t2.get_n_pieces());
-                bitfield2.add_a_piece(0);
-                bitfield2.add_a_piece(10);
+    //         if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
+    //             let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
+    //             let mut bitfield2 = PieceBitfield::new(t2.get_n_pieces());
+    //             bitfield2.add_a_piece(0);
+    //             bitfield2.add_a_piece(10);
 
-                assert_eq!(t1, files[0].0);
-                if let Ok(bf) = files[0].1.read() {
-                    assert_eq!(bitfield1, *bf);
-                } else {
-                    assert!(false);
-                }
+    //             assert_eq!(t1, files[0].0);
+    //             if let Ok(bf) = files[0].1.read() {
+    //                 assert_eq!(bitfield1, *bf);
+    //             } else {
+    //                 assert!(false);
+    //             }
 
-                assert_eq!(t2, files[1].0);
-                if let Ok(bf) = files[1].1.read() {
-                    assert_eq!(bitfield2, *bf);
-                } else {
-                    assert!(false);
-                }
-                return;
-            }
-        }
-        assert!(false);
-    }
+    //             assert_eq!(t2, files[1].0);
+    //             if let Ok(bf) = files[1].1.read() {
+    //                 assert_eq!(bitfield2, *bf);
+    //             } else {
+    //                 assert!(false);
+    //             }
+    //             return;
+    //         }
+    //     }
+    //     assert!(false);
+    // }
 
-    #[test]
-    fn invalid_dl_path() {
-        let torr_dir = "./files_for_testing/torrents_testing";
-        if let Ok(files) = TorrentFinder::find(torr_dir, "./no_dir") {
-            let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
-            let torrent1 = TorrentInfo::new(t1p);
+    // #[test]
+    // fn invalid_dl_path() {
+    //     let torr_dir = "./files_for_testing/torrents_testing";
+    //     if let Ok(files) = TorrentFinder::find(torr_dir, "./no_dir") {
+    //         let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+    //         let torrent1 = TorrentInfo::new(t1p);
 
-            let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-            let torrent2 = TorrentInfo::new(t2p);
+    //         let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+    //         let torrent2 = TorrentInfo::new(t2p);
 
-            if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
-                let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
-                let bitfield2 = PieceBitfield::new(t2.get_n_pieces());
+    //         if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
+    //             let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
+    //             let bitfield2 = PieceBitfield::new(t2.get_n_pieces());
 
-                // We remove ./no_dir directory, that was created above.
-                let _ = fs::remove_dir_all("./no_dir");
+    //             // We remove ./no_dir directory, that was created above.
+    //             let _ = fs::remove_dir_all("./no_dir");
 
-                assert_eq!(t1, files[0].0);
-                if let Ok(bf) = files[0].1.read() {
-                    assert_eq!(bitfield1, *bf);
-                } else {
-                    assert!(false);
-                }
+    //             assert_eq!(t1, files[0].0);
+    //             if let Ok(bf) = files[0].1.read() {
+    //                 assert_eq!(bitfield1, *bf);
+    //             } else {
+    //                 assert!(false);
+    //             }
 
-                assert_eq!(t2, files[1].0);
-                if let Ok(bf) = files[1].1.read() {
-                    assert_eq!(bitfield2, *bf);
-                } else {
-                    assert!(false);
-                }
-                return;
-            }
-        }
-        assert!(false);
-    }
+    //             assert_eq!(t2, files[1].0);
+    //             if let Ok(bf) = files[1].1.read() {
+    //                 assert_eq!(bitfield2, *bf);
+    //             } else {
+    //                 assert!(false);
+    //             }
+    //             return;
+    //         }
+    //     }
+    //     assert!(false);
+    // }
 }

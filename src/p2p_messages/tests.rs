@@ -106,71 +106,71 @@ mod tests {
         (received_cl, received_sv)
     }
 
-    #[test]
-    fn msgs_betw_client_server() {
-        let (mut received_cl, mut received_sv) = setup();
+    // #[test]
+    // fn msgs_betw_client_server() {
+    //     let (mut received_cl, mut received_sv) = setup();
 
-        let unchoke_expected = UnchokeMsg::new();
-        let choke_expected = ChokeMsg::new();
-        let keep_alive_expected = KeepAliveMsg::new();
-        let have_expected = HaveMsg::new(10);
-        let interested_expected = InterestedMsg::new();
-        let not_interested_expected = NotInterestedMsg::new();
-        let cancel_expected = CancelMsg::new(5, 0, 1024);
-        let request_expected = RequestMsg::new(5, 0, 1024).expect("error message creation");
-        let piece_expected =
-            PieceMsg::new(5, 0, vec![10, 16, 255]).expect("error message creation");
-        let bitfield_expected =
-            BitfieldMsg::new(vec![1, 0, 2, 99]).expect("error message creation");
+    //     let unchoke_expected = UnchokeMsg::new();
+    //     let choke_expected = ChokeMsg::new();
+    //     let keep_alive_expected = KeepAliveMsg::new();
+    //     let have_expected = HaveMsg::new(10);
+    //     let interested_expected = InterestedMsg::new();
+    //     let not_interested_expected = NotInterestedMsg::new();
+    //     let cancel_expected = CancelMsg::new(5, 0, 1024);
+    //     let request_expected = RequestMsg::new(5, 0, 1024).expect("error message creation");
+    //     let piece_expected =
+    //         PieceMsg::new(5, 0, vec![10, 16, 255]).expect("error message creation");
+    //     let bitfield_expected =
+    //         BitfieldMsg::new(vec![1, 0, 2, 99]).expect("error message creation");
 
-        match received_cl.pop() {
-            Some(P2PMessage::Piece(m)) => assert_eq!(m, piece_expected),
-            _ => assert!(false),
-        }
+    //     match received_cl.pop() {
+    //         Some(P2PMessage::Piece(m)) => assert_eq!(m, piece_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_cl.pop() {
-            Some(P2PMessage::Unchoke(m)) => assert_eq!(m, unchoke_expected),
-            _ => assert!(false),
-        }
+    //     match received_cl.pop() {
+    //         Some(P2PMessage::Unchoke(m)) => assert_eq!(m, unchoke_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_cl.pop() {
-            Some(P2PMessage::Choke(m)) => assert_eq!(m, choke_expected),
-            _ => assert!(false),
-        }
+    //     match received_cl.pop() {
+    //         Some(P2PMessage::Choke(m)) => assert_eq!(m, choke_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_cl.pop() {
-            Some(P2PMessage::KeepAlive(m)) => assert_eq!(m, keep_alive_expected),
-            _ => assert!(false),
-        }
+    //     match received_cl.pop() {
+    //         Some(P2PMessage::KeepAlive(m)) => assert_eq!(m, keep_alive_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_cl.pop() {
-            Some(P2PMessage::Have(m)) => assert_eq!(m, have_expected),
-            _ => assert!(false),
-        }
+    //     match received_cl.pop() {
+    //         Some(P2PMessage::Have(m)) => assert_eq!(m, have_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_cl.pop() {
-            Some(P2PMessage::Bitfield(m)) => assert_eq!(m, bitfield_expected),
-            _ => assert!(false),
-        }
+    //     match received_cl.pop() {
+    //         Some(P2PMessage::Bitfield(m)) => assert_eq!(m, bitfield_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_sv.pop() {
-            Some(P2PMessage::Cancel(m)) => assert_eq!(m, cancel_expected),
-            _ => assert!(false),
-        }
+    //     match received_sv.pop() {
+    //         Some(P2PMessage::Cancel(m)) => assert_eq!(m, cancel_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_sv.pop() {
-            Some(P2PMessage::Request(m)) => assert_eq!(m, request_expected),
-            _ => assert!(false),
-        }
+    //     match received_sv.pop() {
+    //         Some(P2PMessage::Request(m)) => assert_eq!(m, request_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_sv.pop() {
-            Some(P2PMessage::NotInterested(m)) => assert_eq!(m, not_interested_expected),
-            _ => assert!(false),
-        }
+    //     match received_sv.pop() {
+    //         Some(P2PMessage::NotInterested(m)) => assert_eq!(m, not_interested_expected),
+    //         _ => assert!(false),
+    //     }
 
-        match received_sv.pop() {
-            Some(P2PMessage::Interested(m)) => assert_eq!(m, interested_expected),
-            _ => assert!(false),
-        }
-    }
+    //     match received_sv.pop() {
+    //         Some(P2PMessage::Interested(m)) => assert_eq!(m, interested_expected),
+    //         _ => assert!(false),
+    //     }
+    // }
 }

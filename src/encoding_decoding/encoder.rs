@@ -1,5 +1,6 @@
 use crate::bencode_type::BencodeType;
 use std::collections::HashMap;
+use std::fmt::Write;
 
 /// # struct Encoder
 /// Supports two formats: Bencode and URLencode.
@@ -17,7 +18,7 @@ impl Encoder {
                     urlencoded_data.push(curr_char);
                 }
                 _ => {
-                    urlencoded_data.push_str(&format!("%{:02X}", curr_byte));
+                    let _ = write!(urlencoded_data, "%{:02X}", curr_byte);
                 }
             }
         }
