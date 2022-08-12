@@ -19,8 +19,8 @@ pub struct TrackerRequest {
     info_hash: Vec<u8>,
     peer_id: Vec<u8>,
     port: String,
-    uploaded: u32,
-    downloaded: u32,
+    uploaded: u64,
+    downloaded: u64,
     left: u32,
     event: String,
 }
@@ -29,7 +29,7 @@ impl TrackerRequest {
     /// Creates a new request from a decoded torrent file and a client.
     /// On success, returns the request.
     /// Otherwise, returns error.
-    pub fn new(client: &Client) -> TrackerRequest {
+    pub fn new(client: &Client, downloaded: u64) -> TrackerRequest {
         let torrent_info = client.get_torrent_info();
 
         TrackerRequest {
@@ -38,7 +38,7 @@ impl TrackerRequest {
             peer_id: client.get_peer_id(),
             port: client.get_port(),
             uploaded: 0,
-            downloaded: 0,
+            downloaded,
             left: torrent_info.get_length(),
             event: "started".to_string(),
         }
@@ -165,12 +165,16 @@ impl TrackerRequest {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::channel;
+    use std::sync::{Arc, Mutex, RwLock};
+
+    use glib::PRIORITY_DEFAULT;
+
     use super::*;
     use crate::bitfield::PieceBitfield;
     use crate::errors::ClientError;
     use crate::settings::Settings;
     use crate::torrent_info::TorrentInfo;
-    use std::sync::{mpsc::channel, Arc, RwLock};
 
     fn urldecode(data: &str) -> Vec<u8> {
         let mut decoded_data = Vec::<u8>::new();
@@ -197,8 +201,19 @@ mod tests {
         let torrent = TorrentInfo::new(path);
         if let (Ok(s), Ok(t)) = (settings, torrent) {
             let dl_pieces = Arc::new(RwLock::new(PieceBitfield::new(t.get_n_pieces())));
-            let (tx, _rx) = channel();
-            let client = Client::new(Arc::new(s), t, dl_pieces, tx);
+            let (tx_logger, _rx) = channel();
+
+            let (tx, rx) = channel();
+            let (tx_gtk, _rx_gtk) = glib::MainContext::channel(PRIORITY_DEFAULT);
+            let _ = tx.send(tx_gtk);
+
+            let client = Client::new(
+                Arc::new(s),
+                t,
+                dl_pieces,
+                tx_logger,
+                Arc::new(Mutex::new(rx)),
+            );
 
             return Ok(client);
         }
@@ -210,7 +225,7 @@ mod tests {
         let torrent_path =
             "files_for_testing/torrents_tracker_request_test/ubuntu-20.04.4-desktop-amd64.iso.torrent";
         if let Ok(client) = create_client(&torrent_path) {
-            let request = TrackerRequest::new(&client);
+            let request = TrackerRequest::new(&client, 0);
 
             let expected_req = TrackerRequest {
                 url: "https://torrent.ubuntu.com/announce".to_string(),
@@ -234,7 +249,7 @@ mod tests {
         let torrent_path =
             "files_for_testing/torrents_tracker_request_test/ubuntu-20.04.4-desktop-amd64.iso.torrent";
         if let Ok(client) = create_client(&torrent_path) {
-            let request = TrackerRequest::new(&client);
+            let request = TrackerRequest::new(&client, 0);
             if let Ok(response) = request.make_request() {
                 let x1 = response.get_value_from_dict("interval");
                 let x2 = response.get_value_from_dict("complete");
@@ -260,7 +275,7 @@ mod tests {
     fn error_send_request_invalid_url() {
         let torrent_path = "files_for_testing/torrents_tracker_request_test/invalid_url.torrent";
         if let Ok(client) = create_client(&torrent_path) {
-            let request = TrackerRequest::new(&client);
+            let request = TrackerRequest::new(&client, 0);
             let response = request.make_request();
 
             match response {
@@ -276,7 +291,7 @@ mod tests {
     fn error_send_request_invalid_info() {
         let torrent_path = "files_for_testing/torrents_tracker_request_test/invalid_info.torrent";
         if let Ok(client) = create_client(&torrent_path) {
-            let request = TrackerRequest::new(&client);
+            let request = TrackerRequest::new(&client, 0);
             if let Ok(response) = request.make_request() {
                 let x = response.get_value_from_dict("failure reason");
                 match x {

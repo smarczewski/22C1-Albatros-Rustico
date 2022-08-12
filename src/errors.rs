@@ -28,10 +28,12 @@ pub enum ParseError {
 
 #[derive(Debug)]
 pub enum ArgsError {
+    InvalidNumberOfArguments,
     EmptySettingsPath,
     NoSuchSettingsFile,
     InvalidSettings,
     NoTorrentDir,
+    CannotConnectToGUI,
 }
 impl ErrorMessage for ArgsError {
     fn print_error(&self) {
@@ -44,6 +46,8 @@ impl ErrorMessage for ArgsError {
                 println!("ERROR: Settings file is in invalid format!")
             }
             ArgsError::NoTorrentDir => println!("ERROR: Cannot find the torrents directory!"),
+            ArgsError::CannotConnectToGUI => println!("ERROR: Cannot connect to GUI!"),
+            ArgsError::InvalidNumberOfArguments => println!("ERROR: Invalid number of arguments!"),
         }
     }
 }

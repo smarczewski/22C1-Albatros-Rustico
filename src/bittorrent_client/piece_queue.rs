@@ -56,4 +56,8 @@ impl PieceQueue {
         piece.reset_info();
         self.0.push_back(piece)
     }
+
+    pub fn length(&self) -> u32 {
+        self.0.len() as u32
+    }
 }

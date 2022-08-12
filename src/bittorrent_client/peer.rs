@@ -10,7 +10,7 @@ use std::vec;
 pub struct Peer {
     id: Vec<u8>,
     ip: String,
-    port: i64,
+    port: u32,
 }
 
 impl Peer {
@@ -37,12 +37,16 @@ impl Peer {
         self.ip.clone()
     }
 
-    pub fn port(&self) -> i64 {
+    pub fn port(&self) -> u32 {
         self.port
     }
 
     pub fn connect(&self) -> Result<TcpStream, Error> {
         TcpStream::connect(format!("{}:{}", self.ip, self.port))
+    }
+
+    pub fn update_id(&mut self, id: Vec<u8>) {
+        self.id = id;
     }
 }
 
@@ -66,10 +70,10 @@ fn get_peer_ip(peer: &BencodeType) -> Result<String, ClientError> {
     Err(ClientError::InvalidTrackerResponse)
 }
 
-fn get_peer_port(peer: &BencodeType) -> Result<i64, ClientError> {
+fn get_peer_port(peer: &BencodeType) -> Result<u32, ClientError> {
     if let Ok(value1) = peer.get_value_from_dict("port") {
         if let Ok(value2) = value1.get_integer() {
-            return Ok(value2);
+            return Ok(value2 as u32);
         }
     }
     Err(ClientError::InvalidTrackerResponse)

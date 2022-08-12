@@ -1,13 +1,15 @@
 use crate::bitfield::PieceBitfield;
 use crate::errors::ArgsError;
+use crate::event_messages::NewEvent;
 use crate::torrent_info::TorrentInfo;
 
 use std::fs::{self, read_dir};
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex, RwLock};
 
 type TorrentCombo = (TorrentInfo, Arc<RwLock<PieceBitfield>>);
-
+type ReceiverOfGtkSender = Receiver<glib::Sender<NewEvent>>;
 /// # struct TorrentFinder
 
 pub struct TorrentFinder;
@@ -15,18 +17,32 @@ pub struct TorrentFinder;
 impl TorrentFinder {
     /// It finds all .torrent files in a directory, parses them, and builds
     /// a bitfield (per torrent) with the downloaded pieces.
-    pub fn find(dir_path: &str, dl_path: &str) -> Result<Vec<TorrentCombo>, ArgsError> {
+    pub fn find(
+        dir_path: &str,
+        dl_path: &str,
+        rx_gui: Arc<Mutex<ReceiverOfGtkSender>>,
+    ) -> Result<Vec<TorrentCombo>, ArgsError> {
         let all_torrents = TorrentFinder::find_in(dir_path)?;
-        let mut vec_torrents = vec![];
-        for torrent in all_torrents {
-            if let Ok(new_torrent) = TorrentInfo::new(&torrent) {
-                let name = new_torrent.get_name();
-                let n_pieces = new_torrent.get_n_pieces();
-                let bitfield = TorrentFinder::build_bitfield(dl_path, &name, n_pieces);
-                vec_torrents.push((new_torrent, Arc::new(RwLock::new(bitfield))));
+        if let Ok(rx_gui_lock) = rx_gui.lock() {
+            if let Ok(tx_gtk) = rx_gui_lock.recv() {
+                let mut vec_torrents = vec![];
+                for torrent in all_torrents {
+                    if let Ok(new_torrent) = TorrentInfo::new(&torrent) {
+                        let name = new_torrent.get_name();
+                        let n_pieces = new_torrent.get_n_pieces();
+                        let bitfield = TorrentFinder::build_bitfield(dl_path, &name, n_pieces);
+                        let _ = tx_gtk.send(NewEvent::NewTorrent(
+                            new_torrent.clone(),
+                            bitfield.number_of_downloaded_pieces(),
+                            "Single File".to_string(),
+                        ));
+                        vec_torrents.push((new_torrent, Arc::new(RwLock::new(bitfield))));
+                    }
+                }
+                return Ok(vec_torrents);
             }
         }
-        Ok(vec_torrents)
+        Err(ArgsError::CannotConnectToGUI)
     }
 
     /// In case of receiving a path of a single torrent file, returns it.
@@ -97,7 +113,10 @@ impl TorrentFinder {
 
 #[cfg(test)]
 mod tests {
+    use glib::{MainContext, PRIORITY_DEFAULT};
+
     use super::*;
+    use std::sync::mpsc::channel;
 
     #[test]
     fn get_path_single_torrent() {
@@ -116,18 +135,18 @@ mod tests {
         assert!(file.is_err());
     }
 
-    // #[test]
-    // fn get_path_multiple_torrents() {
-    //     if let Ok(files) = TorrentFinder::find_in("./files_for_testing/torrents_testing") {
-    //         let t1 = "./files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
-    //         let t2 =
-    //             "./files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-    //         let expected_vec = vec![t1, t2];
-    //         assert_eq!(expected_vec, files)
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
+    #[test]
+    fn get_path_multiple_torrents() {
+        if let Ok(files) = TorrentFinder::find_in("./files_for_testing/torrents_testing") {
+            let t1 = "./files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+            let t2 =
+                "./files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+            assert!(files.contains(&t1.to_string()));
+            assert!(files.contains(&t2.to_string()));
+        } else {
+            assert!(false);
+        }
+    }
 
     #[test]
     fn no_such_dir() {
@@ -135,76 +154,76 @@ mod tests {
         assert!(files.is_err());
     }
 
-    // #[test]
-    // fn get_multiple_torrent_info() {
-    //     if let Ok(files) = TorrentFinder::find(
-    //         "./files_for_testing/torrents_testing",
-    //         "./files_for_testing/downloaded_files",
-    //     ) {
-    //         let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
-    //         let torrent1 = TorrentInfo::new(t1p);
+    #[test]
+    fn get_multiple_torrent_info() {
+        let (tx, rx) = channel();
+        let (tx_gtk, _rx_gtk) = MainContext::channel(PRIORITY_DEFAULT);
+        let _ = tx.send(tx_gtk);
+        if let Ok(files) = TorrentFinder::find(
+            "./files_for_testing/torrents_testing",
+            "./files_for_testing/downloaded_files",
+            Arc::new(Mutex::new(rx)),
+        ) {
+            let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+            let torrent1 = TorrentInfo::new(t1p);
 
-    //         let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-    //         let torrent2 = TorrentInfo::new(t2p);
+            let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+            let torrent2 = TorrentInfo::new(t2p);
 
-    //         if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
-    //             let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
-    //             let mut bitfield2 = PieceBitfield::new(t2.get_n_pieces());
-    //             bitfield2.add_a_piece(0);
-    //             bitfield2.add_a_piece(10);
+            if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
+                let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
+                let mut bitfield2 = PieceBitfield::new(t2.get_n_pieces());
+                bitfield2.add_a_piece(0);
+                bitfield2.add_a_piece(10);
 
-    //             assert_eq!(t1, files[0].0);
-    //             if let Ok(bf) = files[0].1.read() {
-    //                 assert_eq!(bitfield1, *bf);
-    //             } else {
-    //                 assert!(false);
-    //             }
+                let torrent_info_vec = vec![files[0].0.clone(), files[1].0.clone()];
+                assert!(torrent_info_vec.contains(&t1));
+                assert!(torrent_info_vec.contains(&t2));
 
-    //             assert_eq!(t2, files[1].0);
-    //             if let Ok(bf) = files[1].1.read() {
-    //                 assert_eq!(bitfield2, *bf);
-    //             } else {
-    //                 assert!(false);
-    //             }
-    //             return;
-    //         }
-    //     }
-    //     assert!(false);
-    // }
+                if let (Ok(bf1), Ok(bf2)) = (files[0].1.read(), files[1].1.read()) {
+                    let bf_vec = vec![bf1.clone(), bf2.clone()];
+                    assert!(bf_vec.contains(&bitfield1));
+                    assert!(bf_vec.contains(&bitfield2));
+                }
+                return;
+            }
+        }
+        assert!(false);
+    }
 
-    // #[test]
-    // fn invalid_dl_path() {
-    //     let torr_dir = "./files_for_testing/torrents_testing";
-    //     if let Ok(files) = TorrentFinder::find(torr_dir, "./no_dir") {
-    //         let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
-    //         let torrent1 = TorrentInfo::new(t1p);
+    #[test]
+    fn invalid_dl_path() {
+        let (tx, rx) = channel();
+        let (tx_gtk, _rx_gtk) = MainContext::channel(PRIORITY_DEFAULT);
+        let _ = tx.send(tx_gtk);
 
-    //         let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
-    //         let torrent2 = TorrentInfo::new(t2p);
+        let torr_dir = "./files_for_testing/torrents_testing";
+        if let Ok(files) = TorrentFinder::find(torr_dir, "./no_dir", Arc::new(Mutex::new(rx))) {
+            let t1p = "files_for_testing/torrents_testing/debian-11.3.0-amd64-netinst.iso.torrent";
+            let torrent1 = TorrentInfo::new(t1p);
 
-    //         if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
-    //             let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
-    //             let bitfield2 = PieceBitfield::new(t2.get_n_pieces());
+            let t2p = "files_for_testing/torrents_testing/ubuntu-20.04.4-desktop-amd64.iso.torrent";
+            let torrent2 = TorrentInfo::new(t2p);
 
-    //             // We remove ./no_dir directory, that was created above.
-    //             let _ = fs::remove_dir_all("./no_dir");
+            if let (Ok(t1), Ok(t2)) = (torrent1, torrent2) {
+                let bitfield1 = PieceBitfield::new(t1.get_n_pieces());
+                let bitfield2 = PieceBitfield::new(t2.get_n_pieces());
 
-    //             assert_eq!(t1, files[0].0);
-    //             if let Ok(bf) = files[0].1.read() {
-    //                 assert_eq!(bitfield1, *bf);
-    //             } else {
-    //                 assert!(false);
-    //             }
+                // We remove ./no_dir directory, that was created above.
+                let _ = fs::remove_dir_all("./no_dir");
 
-    //             assert_eq!(t2, files[1].0);
-    //             if let Ok(bf) = files[1].1.read() {
-    //                 assert_eq!(bitfield2, *bf);
-    //             } else {
-    //                 assert!(false);
-    //             }
-    //             return;
-    //         }
-    //     }
-    //     assert!(false);
-    // }
+                let torrent_info_vec = vec![files[0].0.clone(), files[1].0.clone()];
+                assert!(torrent_info_vec.contains(&t1));
+                assert!(torrent_info_vec.contains(&t2));
+
+                if let (Ok(bf1), Ok(bf2)) = (files[0].1.read(), files[1].1.read()) {
+                    let bf_vec = vec![bf1.clone(), bf2.clone()];
+                    assert!(bf_vec.contains(&bitfield1));
+                    assert!(bf_vec.contains(&bitfield2));
+                }
+                return;
+            }
+        }
+        assert!(false);
+    }
 }

@@ -25,6 +25,37 @@ impl Encoder {
         urlencoded_data
     }
 
+    pub fn urldecode(&self, str: &str) -> String {
+        let mut decoded = String::new();
+        let chars: Vec<char> = str.chars().collect();
+        let mut idx = 0;
+        loop {
+            if idx == chars.len() {
+                break;
+            }
+
+            if chars[idx] == '%' {
+                decoded.push(chars[idx + 1]);
+                decoded.push(chars[idx + 2]);
+                idx += 2;
+            } else {
+                let _ = write!(decoded, "{:02X}", chars[idx] as u8);
+            }
+            idx += 1;
+        }
+
+        decoded
+    }
+
+    pub fn hexencode(&self, vec: &[u8]) -> String {
+        let mut string = String::new();
+        for byte in vec {
+            let _ = write!(string, "{:02x}", byte);
+        }
+
+        string
+    }
+
     /// Receives a decoded BencodeType element and encodes it with Bencode format.
     /// Then, returns it as vec<u8>
     pub fn bencode(&self, decoded: &BencodeType) -> Vec<u8> {

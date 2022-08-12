@@ -39,5 +39,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
+      - name: Install GTK
+        run: sudo apt-get install -y libgtk-3-dev
       - name: Run tests
         run: cargo test

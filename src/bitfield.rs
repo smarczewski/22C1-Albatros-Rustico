@@ -105,6 +105,16 @@ impl PieceBitfield {
     pub fn get_vec(&self) -> Vec<u8> {
         self.bitfield.clone()
     }
+
+    pub fn number_of_downloaded_pieces(&self) -> u32 {
+        let mut piece_counter: u32 = 0;
+        for piece_idx in 0..self.n_pieces {
+            if self.has_piece(piece_idx) {
+                piece_counter += 1;
+            }
+        }
+        piece_counter
+    }
 }
 
 #[cfg(test)]
@@ -181,5 +191,27 @@ mod tests {
         bitfield.add_a_piece(10);
 
         assert_eq!(bitfield.get_complement().bitfield, vec![0xFF, 0xDF]);
+    }
+
+    #[test]
+    fn bitfield_count_pieces() {
+        let bitfield1 = PieceBitfield::new(100);
+        assert_eq!(bitfield1.number_of_downloaded_pieces(), 0);
+
+        let mut bitfield2 = PieceBitfield::new(100);
+        bitfield2.add_a_piece(10);
+        assert_eq!(bitfield2.number_of_downloaded_pieces(), 1);
+
+        let mut bitfield3 = PieceBitfield::new(100);
+        for i in 0..10 {
+            bitfield3.add_a_piece(i);
+        }
+        assert_eq!(bitfield3.number_of_downloaded_pieces(), 10);
+
+        let completed_bf_1 = PieceBitfield::get_completed_bitfield(100);
+        assert_eq!(completed_bf_1.number_of_downloaded_pieces(), 100);
+
+        let completed_bf_2 = PieceBitfield::get_completed_bitfield(80);
+        assert_eq!(completed_bf_2.number_of_downloaded_pieces(), 80);
     }
 }

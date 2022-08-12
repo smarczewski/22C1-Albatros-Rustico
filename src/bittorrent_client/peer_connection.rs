@@ -18,6 +18,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::net::TcpStream;
 use std::path::Path;
+use std::sync::mpsc::SendError;
 use std::sync::{mpsc::Sender, Arc, RwLock};
 use std::thread;
 use std::time::Duration;
@@ -63,11 +64,7 @@ impl PeerConnection {
         if let Ok(stream) = peer.connect() {
             let number_of_pieces = client.get_torrent_info().get_n_pieces();
             let bitfield = vec![0; (number_of_pieces as f32 / 8.0).ceil() as usize];
-            if stream.set_read_timeout(Some(Duration::new(5, 0))).is_ok()
-                && tx_client
-                    .send(NewEvent::NewConnection(peer.clone()))
-                    .is_ok()
-            {
+            if stream.set_read_timeout(Some(Duration::new(5, 0))).is_ok() {
                 return Ok(PeerConnection {
                     stream,
                     client,
@@ -90,11 +87,18 @@ impl PeerConnection {
         if handshake.send_msg(&mut self.stream).is_ok() {
             if let Ok(handshake_res) = Handshake::read_msg(&mut self.stream) {
                 if handshake_res.is_valid(self.client.get_torrent_info().get_info_hash()) {
+                    self.peer.update_id(handshake_res.get_peer_id());
                     return Ok(());
                 }
             }
         }
         Err(DownloadError::HandshakeError)
+    }
+
+    fn announce_new_connection(&self) -> Result<(), SendError<NewEvent>> {
+        let torrent_name = self.client.get_torrent_info().get_name();
+        self.tx_client
+            .send(NewEvent::NewConnection(torrent_name, self.peer.clone()))
     }
 
     /// The download starts. First there is an exchange of handshakes
@@ -105,9 +109,13 @@ impl PeerConnection {
     ///     - If the download finished, the connection will be dropped
     ///     - If the peer has not any piece that we need, the connection will be dropped.
     ///     - Otherwise, calls yield_now() and then, starts another loop iteration
-    pub fn start_download(&mut self, bf_pieces: Arc<RwLock<PieceBitfield>>) {
-        if self.exchange_handshake().is_err() {
-            return self.drop_connection(None);
+    pub fn start_download(
+        &mut self,
+        bf_pieces: Arc<RwLock<PieceBitfield>>,
+        dl_finished: Arc<RwLock<bool>>,
+    ) {
+        if self.exchange_handshake().is_err() || self.announce_new_connection().is_err() {
+            return;
         }
 
         loop {
@@ -126,7 +134,8 @@ impl PeerConnection {
                     _ => (),
                 }
                 continue;
-            } else if self.download_finished(&bf_pieces) || !self.has_any_wanted_piece(&bf_pieces) {
+            } else if self.download_finished(&dl_finished) || !self.has_any_wanted_piece(&bf_pieces)
+            {
                 return self.drop_connection(None);
             } else {
                 thread::yield_now();
@@ -134,9 +143,9 @@ impl PeerConnection {
         }
     }
 
-    fn download_finished(&self, dl_pieces: &Arc<RwLock<PieceBitfield>>) -> bool {
+    fn download_finished(&self, dl_pieces: &Arc<RwLock<bool>>) -> bool {
         if let Ok(lock_dl) = dl_pieces.read() {
-            return lock_dl.has_all_pieces();
+            return *lock_dl;
         }
         false
     }
@@ -156,7 +165,12 @@ impl PeerConnection {
                 piece.get_idx(),
                 self.peer.id()
             );
-            let _ = self.tx_client.send(NewEvent::NewDownloadedPiece(piece));
+            let torrent_name = self.client.get_torrent_info().get_name();
+            let _ = self.tx_client.send(NewEvent::NewDownloadedPiece(
+                torrent_name,
+                piece,
+                self.peer.clone(),
+            ));
         } else {
             self.return_piece(piece);
         }
@@ -166,7 +180,11 @@ impl PeerConnection {
         if let Some(piece) = curr_piece {
             self.return_piece(piece);
         }
-        let _ = self.tx_client.send(NewEvent::ConnectionDropped);
+
+        let torrent_name = self.client.get_torrent_info().get_name();
+        let _ = self
+            .tx_client
+            .send(NewEvent::ConnectionDropped(torrent_name, self.peer.clone()));
     }
 
     /// Carries out the exchange of messages following the BitTorrent protocol to download a piece.
@@ -218,10 +236,25 @@ impl PeerConnection {
         match message {
             P2PMessage::Bitfield(msg) => self.pieces.add_multiple_pieces(msg.get_pieces()),
             P2PMessage::Have(msg) => self.pieces.add_a_piece(msg.get_piece_index()),
-            P2PMessage::Unchoke(_msg) => self.am_choked = false,
+            P2PMessage::Unchoke(_msg) => self.handle_choke_msg(),
             P2PMessage::Piece(msg) => self.handle_piece_msg(msg, piece),
             _ => (),
         }
+    }
+
+    fn handle_choke_msg(&mut self) {
+        self.am_choked = false;
+
+        let int_st = if self.am_interested {
+            "interested"
+        } else {
+            "not interested"
+        };
+
+        let _ = self.tx_client.send(NewEvent::OurStatus(
+            format!("unchoked / {}", int_st),
+            self.peer.clone(),
+        ));
     }
 
     /// Sets status as NOT_DOWNLOADING (0), the checks if the received block is valid.
@@ -295,6 +328,11 @@ impl PeerConnection {
         let interested_msg = InterestedMsg::new();
         if self.send_message(interested_msg).is_ok() {
             self.am_interested = true;
+            let choke_st = if self.am_choked { "choked" } else { "unchoked" };
+            let _ = self.tx_client.send(NewEvent::OurStatus(
+                format!("{} | interested", choke_st),
+                self.peer.clone(),
+            ));
         }
     }
 

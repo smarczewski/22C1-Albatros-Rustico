@@ -72,8 +72,10 @@ mod tests {
     use crate::p2p_messages::message_trait::Message;
     use crate::p2p_messages::request::RequestMsg;
     use crate::piece::Piece;
+    use glib::{MainContext, PRIORITY_DEFAULT};
     use sha1::{Digest, Sha1};
     use std::net::TcpStream;
+    use std::sync::Mutex;
     use std::{sync::mpsc::channel, vec};
 
     use crate::{errors::HandleError, settings::Settings, torrent_finder::TorrentFinder};
@@ -109,8 +111,14 @@ mod tests {
         let mut requested_piece = Piece::new(0, torrent.get_piece_length(), torrent.get_hash(0));
         // Running the server
         let _thread = thread::spawn(move || {
-            if let Ok(vec) = TorrentFinder::find(torrent_path, "files_for_testing/downloaded_files")
-            {
+            let (tx, rx) = channel();
+            let (tx_gtk, _rx_gtk) = MainContext::channel(PRIORITY_DEFAULT);
+            let _ = tx.send(tx_gtk);
+            if let Ok(vec) = TorrentFinder::find(
+                torrent_path,
+                "files_for_testing/downloaded_files",
+                Arc::new(Mutex::new(rx)),
+            ) {
                 let (tx, _rx) = channel();
                 Server::init(settings.clone(), tx, vec);
             }

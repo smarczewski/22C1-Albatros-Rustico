@@ -1,11 +1,13 @@
 pub mod bencode_type;
 pub mod bitfield;
+pub mod bittorrent;
 pub mod bittorrent_client;
 pub mod bittorrent_server;
 pub mod constants;
 pub mod encoding_decoding;
 pub mod errors;
 pub mod event_messages;
+pub mod gui;
 pub mod logging;
 pub mod p2p_messages;
 pub mod piece;
