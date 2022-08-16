@@ -1,9 +1,9 @@
 use super::piece_queue::PieceQueue;
 use crate::bencode_type::BencodeType;
 use crate::bitfield::PieceBitfield;
-use crate::bittorrent_client::peer::Peer;
-use crate::bittorrent_client::peer_connection::PeerConnection;
-use crate::bittorrent_client::tracker_request::TrackerRequest;
+use crate::bt_client::peer::Peer;
+use crate::bt_client::peer_connection::PeerConnection;
+use crate::bt_client::tracker_request::TrackerRequest;
 use crate::constants::*;
 use crate::errors::*;
 use crate::event_messages::NewEvent;

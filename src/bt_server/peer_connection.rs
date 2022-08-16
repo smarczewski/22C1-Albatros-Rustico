@@ -279,7 +279,7 @@ impl PeerConnection {
 }
 
 fn get_torrent_info(
-    info_hash: &Vec<u8>,
+    info_hash: &[u8],
     torrents: Vec<(TorrentInfo, Arc<RwLock<PieceBitfield>>)>,
 ) -> Result<(TorrentInfo, Arc<RwLock<PieceBitfield>>), ServerError> {
     for torrent in torrents {

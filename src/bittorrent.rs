@@ -1,6 +1,6 @@
 use crate::bitfield::PieceBitfield;
-use crate::bittorrent_client::client::Client;
-use crate::bittorrent_server::server::Server;
+use crate::bt_client::client::Client;
+use crate::bt_server::server::Server;
 use crate::constants::MAX_CONCURRENT_TORRENTS;
 use crate::errors::ArgsError;
 use crate::errors::HandleError;

@@ -1,4 +1,4 @@
-use crate::bittorrent_client::client::Client;
+use crate::bt_client::client::Client;
 use crate::errors::MessageError;
 use crate::p2p_messages::message_trait::Message;
 

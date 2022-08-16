@@ -1,6 +1,7 @@
 use crate::bencode_type::BencodeType;
 use std::collections::HashMap;
 use std::fmt::Write;
+use std::io::{Error, ErrorKind};
 
 /// # struct Encoder
 /// Supports two formats: Bencode and URLencode.
@@ -25,7 +26,7 @@ impl Encoder {
         urlencoded_data
     }
 
-    pub fn urldecode(&self, str: &str) -> String {
+    pub fn urldecode(&self, str: &str) -> Result<String, Error> {
         let mut decoded = String::new();
         let chars: Vec<char> = str.chars().collect();
         let mut idx = 0;
@@ -35,6 +36,12 @@ impl Encoder {
             }
 
             if chars[idx] == '%' {
+                if idx + 2 >= chars.len() {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        "Invalid URLencoded input",
+                    ));
+                }
                 decoded.push(chars[idx + 1]);
                 decoded.push(chars[idx + 2]);
                 idx += 2;
@@ -44,7 +51,7 @@ impl Encoder {
             idx += 1;
         }
 
-        decoded
+        Ok(decoded)
     }
 
     pub fn hexencode(&self, vec: &[u8]) -> String {
@@ -115,7 +122,6 @@ impl Encoder {
         vec.push(b'e');
     }
 }
-
 #[cfg(test)]
 mod tests {
 

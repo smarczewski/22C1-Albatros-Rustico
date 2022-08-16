@@ -1,8 +1,8 @@
 pub mod bencode_type;
 pub mod bitfield;
 pub mod bittorrent;
-pub mod bittorrent_client;
-pub mod bittorrent_server;
+pub mod bt_client;
+pub mod bt_server;
 pub mod constants;
 pub mod encoding_decoding;
 pub mod errors;

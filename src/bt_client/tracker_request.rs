@@ -1,5 +1,5 @@
 use crate::bencode_type::BencodeType;
-use crate::bittorrent_client::client::Client;
+use crate::bt_client::client::Client;
 use crate::constants::*;
 use crate::encoding_decoding::bencode_parser::BencodeParser;
 use crate::encoding_decoding::encoder::Encoder;

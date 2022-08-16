@@ -1,4 +1,4 @@
-use crate::bittorrent_client::peer::Peer;
+use crate::bt_client::peer::Peer;
 use crate::piece::Piece;
 use crate::torrent_info::TorrentInfo;
 

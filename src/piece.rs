@@ -1,14 +1,22 @@
 use sha1::{Digest, Sha1};
 
+/// # struct Piece
+/// Represents a piece of the torrent file:
+///     - idx -> piece index
+///     - tl_piece_bytes -> the total amount of bytes of the piece
+///     - dl_piece_bytes -> the amount of bytes already downloaded of the piece
+///     - rq_piece_bytes -> the amount of bytes already requested to a peer
+///     - expected_hash -> the hash we should end up with after completing download
+///     - data -> the piece data (blocks)
 #[derive(Debug)]
 //#[derive(Clone)]
 pub struct Piece {
-    idx: u32,               // nro de pieza
-    tl_piece_bytes: u32,    // bytes totales de la pieza
-    dl_piece_bytes: u32,    // los bytes de la pieza que descargamos
-    rq_piece_bytes: u32,    // los bytes que hicimos request
-    expected_hash: Vec<u8>, // el hash que esperamos
-    data: Vec<u8>,          // la data de la pieza (bloques)
+    idx: u32,
+    tl_piece_bytes: u32,
+    dl_piece_bytes: u32,
+    rq_piece_bytes: u32,
+    expected_hash: Vec<u8>,
+    data: Vec<u8>,
 }
 
 impl Piece {
@@ -23,6 +31,7 @@ impl Piece {
         }
     }
 
+    /// Adds a new block to the piece data
     pub fn add_block(&mut self, mut block: Vec<u8>) {
         self.data.append(&mut block)
     }
@@ -49,42 +58,52 @@ impl Piece {
         self.expected_hash == piece_hash.to_vec()
     }
 
+    // Returns the piece index
     pub fn get_idx(&self) -> u32 {
         self.idx
     }
 
+    // Returns the amount downloaded so far in bytes
     pub fn get_dl(&self) -> u32 {
         self.dl_piece_bytes
     }
 
+    // Returns the total piece size in bytes
     pub fn get_tl(&self) -> u32 {
         self.tl_piece_bytes
     }
 
+    // Returns the amount requested to peers so far in bytes
     pub fn get_rq(&self) -> u32 {
         self.rq_piece_bytes
     }
 
+    /// Increases the amount downloaded
     pub fn add_to_dl(&mut self, bytes: u32) {
         self.dl_piece_bytes += bytes;
     }
 
+    /// Increases the amount requested
     pub fn add_to_rq(&mut self, bytes: u32) {
         self.rq_piece_bytes += bytes;
     }
 
+    /// Returns the piece data
     pub fn get_data(&self) -> Vec<u8> {
         self.data.clone()
     }
 
+    /// Returns the hash the piece should have to be valid
     pub fn get_hash(&mut self) -> Vec<u8> {
         self.expected_hash.clone()
     }
 
+    // Deletes the data we had so far
     pub fn empty_data(&mut self) {
         self.data = vec![];
     }
 
+    // Deletes all of the piece info
     pub fn reset_info(&mut self) {
         self.dl_piece_bytes = 0;
         self.rq_piece_bytes = 0;

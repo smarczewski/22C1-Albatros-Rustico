@@ -1,4 +1,4 @@
-use crate::bittorrent_client::peer::Peer;
+use crate::bt_client::peer::Peer;
 use crate::encoding_decoding::encoder::Encoder;
 use crate::event_messages::NewEvent;
 use crate::gui::gui_assets::{GeneralColumns, View};
@@ -109,7 +109,10 @@ impl UserInterface {
 
         let values: [(u32, &dyn ToValue); 10] = [
             (0, &torrent_info.get_name()),
-            (1, &Encoder.urldecode(&infohash)),
+            (
+                1,
+                &(Encoder.urldecode(&infohash)).unwrap_or_else(|_| "n/a".to_string()),
+            ),
             (2, &structure),
             (3, &size),
             (4, &torrent_info.get_n_pieces()),
@@ -123,7 +126,7 @@ impl UserInterface {
         model.set(&model.append(), &values);
     }
 
-    fn set_status(&mut self, torrent_name: &String, status: &str) {
+    fn set_status(&mut self, torrent_name: &str, status: &str) {
         let model = &self.view.notebook.general_info.list_store;
 
         if let Some(iter) = self.search_torrent(torrent_name) {
@@ -142,7 +145,7 @@ impl UserInterface {
         }
     }
 
-    fn set_number_of_peers(&mut self, torrent_name: &String, no_of_peers: u32) {
+    fn set_number_of_peers(&mut self, torrent_name: &str, no_of_peers: u32) {
         let model = &self.view.notebook.general_info.list_store;
 
         if let Some(iter) = self.search_torrent(torrent_name) {
@@ -154,7 +157,7 @@ impl UserInterface {
         }
     }
 
-    fn add_new_piece(&mut self, torrent_name: &String, peer: Peer, piece: Piece) {
+    fn add_new_piece(&mut self, torrent_name: &str, peer: Peer, piece: Piece) {
         if let Some(iter) = self.search_torrent(torrent_name) {
             self.update_dl_pieces(&iter, torrent_name);
         }
@@ -175,7 +178,7 @@ impl UserInterface {
         }
     }
 
-    fn search_torrent(&self, torrent: &String) -> Option<TreeIter> {
+    fn search_torrent(&self, torrent: &str) -> Option<TreeIter> {
         let model = &self.view.notebook.general_info.list_store;
         let mut path = TreePath::new_first();
         let mut curr_iter = model.iter(&path);
@@ -185,7 +188,7 @@ impl UserInterface {
                 .value(&iter, GeneralColumns::Name as i32)
                 .get::<String>()
             {
-                if &current_torrent == torrent {
+                if current_torrent == torrent {
                     return Some(iter);
                 }
                 path.next();
@@ -195,7 +198,7 @@ impl UserInterface {
         None
     }
 
-    fn search_peer(&self, peer_ip: &String) -> Option<TreeIter> {
+    fn search_peer(&self, peer_ip: &str) -> Option<TreeIter> {
         let model = &self.view.notebook.download_stats.list_store;
         let mut path = TreePath::new_first();
         let mut curr_iter = model.iter(&path);
@@ -205,7 +208,7 @@ impl UserInterface {
                 .value(&iter, StatColumns::PeerIP as i32)
                 .get::<String>()
             {
-                if &current_peer_ip == peer_ip {
+                if current_peer_ip == peer_ip {
                     return Some(iter);
                 }
                 path.next();
@@ -215,7 +218,7 @@ impl UserInterface {
         None
     }
 
-    fn add_new_peer(&mut self, peer: &Peer, torrent: &String) {
+    fn add_new_peer(&mut self, peer: &Peer, torrent: &str) {
         if let Some(iter) = self.search_torrent(torrent) {
             self.update_active_connections(&iter, true);
         }
@@ -257,7 +260,7 @@ impl UserInterface {
         }
     }
 
-    fn delete_peer(&mut self, peer: &Peer, torrent_name: &String) {
+    fn delete_peer(&mut self, peer: &Peer, torrent_name: &str) {
         if let Some(iter) = self.search_torrent(torrent_name) {
             self.update_active_connections(&iter, false);
         }
@@ -268,7 +271,7 @@ impl UserInterface {
         }
     }
 
-    fn update_dl_pieces(&mut self, iter: &TreeIter, torrent_name: &String) {
+    fn update_dl_pieces(&mut self, iter: &TreeIter, torrent_name: &str) {
         let model = &self.view.notebook.general_info.list_store;
 
         if let Ok(mut dl_pieces) = model

@@ -1,7 +1,7 @@
 use crate::bitfield::PieceBitfield;
-use crate::bittorrent_client::client::Client;
-use crate::bittorrent_client::peer::Peer;
-use crate::bittorrent_client::piece_queue::PieceQueue;
+use crate::bt_client::client::Client;
+use crate::bt_client::peer::Peer;
+use crate::bt_client::piece_queue::PieceQueue;
 use crate::errors::*;
 use crate::event_messages::*;
 use crate::p2p_messages::handshake::Handshake;
