@@ -27,12 +27,24 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install GTK
         run: sudo apt-get install -y libgtk-3-dev
-      - name: Run format check
+      - name: Run format check client
         run: cargo fmt --check
-      - name: Run check
+        working-directory: bittorrent_client
+      - name: Run check client
         run: cargo check --color always
-      - name: Run clippy
+        working-directory: bittorrent_client
+      - name: Run clippy client
         run: cargo clippy --color always -- -D warnings
+        working-directory: bittorrent_client
+      #- name: Run format check tracker
+      #  run: cargo fmt --check
+      #  working-directory: bittorrent_tracker
+      #- name: Run check tracker
+      #  run: cargo check --color always
+      #  working-directory: bittorrent_tracker
+      #- name: Run clippy tracker
+      #  run: cargo clippy --color always -- -D warnings
+      #  working-directory: bittorrent_tracker
 
   test:
     needs: [lint] # Run after lint has successfully passed
@@ -41,5 +53,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install GTK
         run: sudo apt-get install -y libgtk-3-dev
-      - name: Run tests
+      - name: Run tests client
         run: cargo test
+        working-directory: bittorrent_client
+      #- name: Run tests tracker
+      #  run: cargo test
+      #  working-directory: bittorrent_tracker
