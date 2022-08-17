@@ -105,6 +105,7 @@ impl Client {
     /// On error, it returns ClientError::DownloadError
     pub fn run_client(&mut self) -> Result<(), ClientError> {
         if self.file_is_downloaded() {
+            let _ = self.connect_to_tracker(self.torrent.get_n_pieces());
             return Ok(());
         }
 
