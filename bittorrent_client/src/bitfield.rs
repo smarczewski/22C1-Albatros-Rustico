@@ -4,7 +4,7 @@ use crate::constants::BYTE_FILLED_W_ONES;
 /// It's a bitfield where each bit represent a piece.
 ///     - 1 -> piece has been already downloaded
 ///     - 0 -> piece has not been downloaded yet
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PieceBitfield {
     bitfield: Vec<u8>,
     n_pieces: u32,

@@ -11,7 +11,7 @@ use std::io::{Error, ErrorKind};
 ///     - piece_length
 ///     - n_pieces -> number of pieces
 ///     - hashes_list -> list of piece hashes
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TorrentInfo {
     name: String,
     announce: String,

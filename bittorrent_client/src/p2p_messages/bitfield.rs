@@ -2,7 +2,7 @@ use crate::errors::MessageError;
 use crate::p2p_messages::message_trait::Message;
 use std::io::{Read, Write};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BitfieldMsg {
     _length: u32,
     id: u8,

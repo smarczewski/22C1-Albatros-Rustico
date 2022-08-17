@@ -4,7 +4,7 @@ use crate::p2p_messages::message_trait::Message;
 
 use std::io::{Read, Write};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Handshake {
     pstrlen: u8,
     pstr: Vec<u8>,

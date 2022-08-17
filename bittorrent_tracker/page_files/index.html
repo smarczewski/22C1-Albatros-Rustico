@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <!-- <meta charset="UTF-8"> -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <title>Stats Tracker</title>
+    <!-- <link href="https://fonts.googleapis.com/css?family=Poppins:100,200,300" rel="stylesheet" /> -->
+    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"> -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <main>
+
+        <!-- Menu desplegable -->
+        <h1>/stats Albatros Rustico Tracker</h1>
+        <div id="container">
+            <div class="box" aria-haspopup="true">
+              <button id="btn-dropdown" class="btn-dropdown">Filter Data</button>
+              <nav id="nav-dropdown" class="nav-dropdown">
+                <ul>
+                  <li><a href="#" onclick="showInfo(3600)">Last hour</a></li>
+                  <li><a href="#" onclick="showInfo(3600*5)">Last 5 hours</a></li>
+                  <li><a href="#" onclick="showInfo(3600*24)">Last day</a></li>
+                  <li><a href="#" onclick="showInfo(3600*24*3)">Last 3 days</a></li>
+                </ul>
+              </nav>
+            </div>
+        </div>
+
+        <!-- <hr> -->
+
+
+        <!-- Charts -->
+        <section class="cols-2">
+            <figure>
+                <h3>Seeders</h3>
+                <canvas id="chart1"></canvas>
+            </figure>
+
+            <figure>
+                <h3>Leechers</h3>
+                <canvas id="chart2"></canvas>
+            </figure>
+        </section>
+
+        <section class="cols-1">
+            <figure>
+                <h3>Active Peers</h3>
+                <canvas id="chart3"></canvas>
+            </figure>
+        </section>
+
+        <section class="cols-3">
+            <figure>
+                <h3>Peers with completed download</h3>
+                <canvas id="chart4"></canvas>
+            </figure>
+        </section>
+
+        <section class="cols-4">
+            <figure>
+                <h3>Number of torrents</h3>
+                <canvas id="chart5"></canvas>
+            </figure>
+        </section>
+
+        <!-- <section class="cols-3">
+            <figure>
+                <p>Gráfico radial</p>
+                <h3>Altura</h3>
+                <canvas id="chart3"></canvas>
+            </figure>
+
+            <figure>
+                <p>Gráfico de <em>donut</em></p>
+                <h3>Modelos</h3>
+                <canvas id="chart4"></canvas>
+            </figure>
+
+            <figure>
+                <p>Gráfico de barras</p>
+                <h3>Fuerza G</h3>
+                <canvas id="chart5"></canvas>
+            </figure>
+        </section> -->
+
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+    <!-- ChartJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+
+    <!-- Styles for charts -->
+    <script src="chartStyles.js"></script>
+
+    <!-- DCharts development -->
+    <script src="script.js"></script>
+</body>
+
+</html>

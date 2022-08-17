@@ -1,0 +1,212 @@
+@charset "utf-8";
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+
+body {
+  background: #181f38;
+  font-family: 'Poppins', monospace;
+  color: white;
+  font-size: .7em;
+  font-weight: 200;
+  letter-spacing: 1px;
+}
+
+#container {
+    display: flex;
+    justify-content: center;
+    /* align-items: x; */
+    position: relative;
+    width: 100%;
+    /* height: 100vh; */
+    min-height: 300px;
+    padding: 20px 0;
+  }
+  .box {
+    position: relative;
+  }
+  .btn-dropdown {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    background: #6666e2;
+    color: #fff;
+    font-size: 1.25rem;
+    outline: none;
+    cursor: pointer;
+  }
+  .btn-dropdown::after {
+    display: inline-block;
+    -webkit-transform: rotate(45deg);
+    transform: rotate(45deg);
+    width: 8px;
+    height: 8px;
+    margin-left: 10px;
+    border-right: 2px solid #FFF;
+    border-bottom: 2px solid #FFF;
+    vertical-align: 4px;
+    content: '';
+  }
+  .btn-dropdown:hover {
+    opacity: .9;
+  }
+  .nav-dropdown {
+    display: none;
+    position: absolute;
+    top: 50px;
+    left: 0;
+    right: 0;
+    padding: 10px 0;
+    border-radius: 4px;
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, .1);
+    background-color: #fff;
+  }
+  .nav-dropdown ul {
+    list-style-type: none;
+  }
+  .nav-dropdown ul li {
+    padding: 8px 0;
+    font-size: 18px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .nav-dropdown ul li a {
+    display: block;
+    color: #3d3935;
+    text-decoration: none;
+  }
+  .nav-dropdown ul li:hover {
+    background-color: #6666e2;
+  }
+  .nav-dropdown ul li:hover a {
+    color: #fff;
+  }
+  .nav-dropdown.is-open {
+    display: block;
+  }
+  .btn-dropdown.is-open::after {
+    -webkit-transform: rotate(-135deg);
+    transform: rotate(-135deg);
+    vertical-align: middle;
+  }
+  @media screen and (max-width: 480px) {
+    #container {
+      align-items: flex-start;
+    }
+  }
+
+html {
+  padding: 20px;
+  font-weight: 300;
+}
+
+main {
+    padding: 20px;
+}
+
+section {
+    margin-bottom: 40px;
+}
+
+h1 {
+    font-size: 3em;
+    font-weight: 100;
+    text-align:center;
+}
+
+h2, h3 {
+    font-size: 1.4em;
+    margin-bottom: 29px;
+    border-bottom: 1px solid rgba(255,255,255,.2);
+    padding-bottom: 15px;
+    font-weight: 200;
+}
+
+hr {
+    border-color: white;
+    margin-bottom: 50px;
+}
+
+figure {
+    background-color: rgba(255,255,255,.05);
+    padding: 10px 10px 30px;
+}
+
+figure p {
+    margin-bottom: 7px;
+    font-size: .8em;
+}
+
+canvas {
+    width: 100%;
+}
+
+
+/* grid */
+
+[class*='cols'] {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+}
+
+.cols-2 > * {
+    width: 50%;
+    margin:5px
+}
+
+.cols-1 > * {
+    width: 100%;
+    margin: 10px
+}
+
+.cols-3 > * {
+  width: 100%;
+  margin: 10px
+}
+
+.cols-4 > * {
+  width: 100%;
+  margin: 10px
+}
+
+#chart1 {
+  max-height: 300px;
+}
+
+#chart2 {
+  max-height: 300px;
+}
+
+#chart3 {
+    max-height: 400px;
+}
+
+#chart4 {
+  max-height: 300px;
+}
+
+#chart5 {
+  max-height: 300px;
+}
+
+section {
+    opacity: 0;
+    transition: opacity .3s;
+}
+
+.running section {
+    opacity: 1
+}
+
+.loading {
+    position: absolute;
+    border: none;
+}
+
+.running .loading {
+    display: none;
+}

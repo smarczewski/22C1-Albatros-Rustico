@@ -36,15 +36,15 @@ jobs:
       - name: Run clippy client
         run: cargo clippy --color always -- -D warnings
         working-directory: bittorrent_client
-      #- name: Run format check tracker
-      #  run: cargo fmt --check
-      #  working-directory: bittorrent_tracker
-      #- name: Run check tracker
-      #  run: cargo check --color always
-      #  working-directory: bittorrent_tracker
-      #- name: Run clippy tracker
-      #  run: cargo clippy --color always -- -D warnings
-      #  working-directory: bittorrent_tracker
+      - name: Run format check tracker
+        run: cargo fmt --check
+        working-directory: bittorrent_tracker
+      - name: Run check tracker
+        run: cargo check --color always
+        working-directory: bittorrent_tracker
+      - name: Run clippy tracker
+        run: cargo clippy --color always -- -D warnings
+        working-directory: bittorrent_tracker
 
   test:
     needs: [lint] # Run after lint has successfully passed
@@ -54,8 +54,9 @@ jobs:
       - name: Install GTK
         run: sudo apt-get install -y libgtk-3-dev
       - name: Run tests client
+
         run: cargo test
         working-directory: bittorrent_client
-      #- name: Run tests tracker
-      #  run: cargo test
-      #  working-directory: bittorrent_tracker
+      - name: Run tests tracker
+        run: cargo test
+        working-directory: bittorrent_tracker

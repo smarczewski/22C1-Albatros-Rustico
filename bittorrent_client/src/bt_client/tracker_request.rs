@@ -13,7 +13,7 @@ use std::string::String;
 
 /// # struct Tracker Request
 /// Represents the HTTP Request that the client sends to the tracker
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TrackerRequest {
     url: String,
     info_hash: Vec<u8>,

@@ -10,10 +10,10 @@ impl MsgCoder {
             _ => "Client",
         };
         match message_type {
-            START_LOG_TYPE => return format!("START|{}|{}", emiter, message),
-            END_LOG_TYPE => return format!("END|{}|{}", emiter, message),
-            ERROR_LOG_TYPE => return format!("ERROR|{}|{}", emiter, message),
-            _ => return format!("INFO|{}|{}", emiter, message),
+            START_LOG_TYPE => format!("START|{}|{}", emiter, message),
+            END_LOG_TYPE => format!("END|{}|{}", emiter, message),
+            ERROR_LOG_TYPE => format!("ERROR|{}|{}", emiter, message),
+            _ => format!("INFO|{}|{}", emiter, message),
         }
     }
 }
