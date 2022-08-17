@@ -137,7 +137,6 @@ impl HostedTorrent {
         data_dict.insert("incomplete".to_string(), incomplete);
         data_dict.insert("interval".to_string(), BencodeType::Integer(1800));
         data_dict.insert("peers".to_string(), BencodeType::List(peer_list));
-        println!("\n{:?}", BencodeType::Dictionary(data_dict.clone()));
         BencodeType::Dictionary(data_dict)
     }
 }

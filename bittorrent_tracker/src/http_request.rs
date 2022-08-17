@@ -9,7 +9,7 @@ use std::{
     net::TcpStream,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AnnounceEndpoint {
     info_hash: String,
     peer_id: String,
@@ -53,7 +53,7 @@ pub enum Event {
 
 /// # Http Request
 /// Represents a Http Request that supports this tracker
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HttpRequest {
     Announce(AnnounceEndpoint),
     Stats,
@@ -187,7 +187,6 @@ impl HttpRequest {
                 serde_json::from_str(&data_string);
 
             if let Ok(tracker_data) = data_struct {
-                println!("{:?}; {}", tracker_data, req.get_info_hash());
                 if let Ok(bencoded_data) = tracker_data.bencode_data(req.get_info_hash()) {
                     if let Ok(content) = String::from_utf8(bencoded_data) {
                         return (status_line, content);
