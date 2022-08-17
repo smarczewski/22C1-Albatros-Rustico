@@ -31,6 +31,15 @@ impl TrackerRequest {
     /// Otherwise, returns error.
     pub fn new(client: &Client, downloaded: u64) -> TrackerRequest {
         let torrent_info = client.get_torrent_info();
+        let length = torrent_info.get_length();
+
+        let event = {
+            if downloaded as u32 == length {
+                "completed".to_string()
+            } else {
+                "started".to_string()
+            }
+        };
 
         TrackerRequest {
             url: torrent_info.get_announce(),
@@ -39,8 +48,8 @@ impl TrackerRequest {
             port: client.get_port(),
             uploaded: 0,
             downloaded,
-            left: torrent_info.get_length(),
-            event: "started".to_string(),
+            left: length - downloaded as u32,
+            event,
         }
     }
 

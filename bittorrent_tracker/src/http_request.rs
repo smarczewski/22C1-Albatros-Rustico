@@ -43,7 +43,7 @@ impl AnnounceEndpoint {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
     Started,
     Stopped,
