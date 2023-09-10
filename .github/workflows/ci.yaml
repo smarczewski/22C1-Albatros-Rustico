@@ -3,9 +3,9 @@ name: CI
 # Specify when this workflow will run
 on:
   push: # Run when pushing...
-    branches-ignore: [main] # to main branch.
+    branches: [main] # to main branch.
   pull_request: # Run when creating a Pull Request...
-    branches-ignore: [main] # against main branch.
+    branches: [main] # against main branch.
 
 defaults:
   run:
